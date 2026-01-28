@@ -2,14 +2,16 @@
   "width": 10,
   "height": 10,
   "tile_size": 32,
+  "bg_colour": [13, 31, 13],
+  "tint_colour": [10, 52, 22],
   "environment": "mossy",
   "layers": [
     {
       "type": "tilelayer",
       "name": "Ground",
       "data": [
-        {"x": 1, "y": 10, "z": 5, "w": 10, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark"], "offset":  [0, 0],
-          "render_cut": [1, 0], "solid_depth": 4, "dark_depth": 2
+        {"x": 1, "y": 10, "z": 5, "w": 10, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark", "alternate"], "offset":  [0, 0],
+          "render_cut": [1, 0], "solid_depth": 4, "dark_depth": 2, "alternate": 1
         }
       ]
     },

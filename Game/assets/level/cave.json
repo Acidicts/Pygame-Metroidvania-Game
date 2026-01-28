@@ -2,6 +2,8 @@
   "width": 20,
   "height": 15,
   "tile_size": 32,
+  "bg_colour": [45, 45, 45],
+  "tint_colour": [12, 12, 12],
   "environment": "cave",
   "layers": [
     {

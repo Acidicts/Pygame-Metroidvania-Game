@@ -69,6 +69,9 @@ class TileMap:
         self.height = 0
         self.tile_size = 0
 
+        self.bg_colour = (45, 45, 45)
+        self.tint_colour = (12, 12, 12)
+
     def load_map(self, p):
         with open(p, 'r') as f:
             data = json.load(f)
@@ -76,6 +79,9 @@ class TileMap:
         self.width = data['width']
         self.height = data['height']
         self.tile_size = data['tile_size']
+
+        self.bg_colour = data.get('bg_colour', self.bg_colour)
+        self.tint_colour = data.get('tint_colour', self.tint_colour)
 
         for layer in data['layers']:
 
@@ -268,6 +274,17 @@ class TileMap:
     def get_tile(self, x, y):
         return self.tile_map.get((x, y), None)
 
+    def contains_rect(self, rect):
+        if self.tile_size <= 0 or self.width <= 0 or self.height <= 0:
+            return False
+        bounds = pygame.Rect(
+            int(self.pos.x * self.tile_size),
+            int(self.pos.y * self.tile_size),
+            int(self.width * self.tile_size),
+            int(self.height * self.tile_size),
+        )
+        return bounds.colliderect(rect)
+
     def render(self, surface, camera_offset, layer):
         camera_offset = pygame.math.Vector2(camera_offset)
         from Game.utils.config import get_config
@@ -279,7 +296,7 @@ class TileMap:
         for tile in self.tile_map.values():
             if tile["variant"] == "dark" or "dark" in tile.get("properties", []):
                 x = tile['x'] * self.tile_size - camera_offset.x
-                y = (tile['y']) * self.tile_size - camera_offset.y
+                y = (tile['y']) * self.tile_size - camera_offset.y + (self.tile_size * 0.05)
                 height = screen_height - y
                 if height > 0:
                     pygame.draw.rect(surface, (0, 0, 0), (x, y, self.tile_size, self.tile_size))
@@ -414,3 +431,10 @@ class TileMap:
 
                 if sensor["triggered"] and not player_in_sensor:
                     sensor["triggered"] = False
+
+
+def find_tilemap_for_rect(tilemaps, rect):
+    for name, tilemap in tilemaps.items():
+        if tilemap.contains_rect(rect):
+            return name, tilemap
+    return None, None

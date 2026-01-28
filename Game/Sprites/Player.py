@@ -1,9 +1,9 @@
+import pygame
 from statistics import median
-
-import pygame.surface
 
 from Game.Sprites.PhysicsSprite import PhysicsSprite
 from Game.utils.helpers import crop_to_content
+from Game.utils.tilemaps import find_tilemap_for_rect
 from Game.utils.utils import SpriteSheet
 
 
@@ -13,16 +13,18 @@ class Player(PhysicsSprite):
         self.attributes = {
             "max_speed": 200,
             "velocity": pygame.math.Vector2(0, 0),
-            "acceleration": 1000,
-            "friction": 1200,
-            "terminal_velocity": 2000,
+            "acceleration": 1200,
+            "friction": 800,
+            "air_resistance": 200,
+            "terminal_velocity": 800,
             "max_health": 10,
-            "jump_velocity": -800,
+            "jump_velocity": -600,
             "jumps_left": 1,
             "max_jumps": 1
         }
 
-        self.tilemap = game.tilemaps["cave"]
+        self.tilemap_name = "cave"
+        self.tilemap = game.tilemaps[self.tilemap_name]
         self.game = game
 
         self.animation = "idle"
@@ -114,6 +116,11 @@ class Player(PhysicsSprite):
         self.controls(dt)
         super().update(dt)
 
+        tilemap_name, tilemap = find_tilemap_for_rect(self.game.tilemaps, self.rect)
+        if tilemap is not None:
+            self.tilemap_name = tilemap_name
+            self.tilemap = tilemap
+
         self.on_ground = any(self.collisions["bottom"])
 
         if self.on_ground:
@@ -129,8 +136,6 @@ class Player(PhysicsSprite):
                 self.set_animation("jump")
             elif self.velocity.y > 40:
                 self.set_animation("fall")
-
-        print(self.velocity)
 
         self._update_animation_direction()
         self.run_animation(dt)
@@ -169,26 +174,42 @@ class Player(PhysicsSprite):
     def controls(self, dt):
         keys = pygame.key.get_pressed()
 
+        horizontal_input = 0
         if keys[pygame.K_LEFT]:
-            self.velocity.x -= self.attributes["acceleration"] * dt
-            self.facing_right = False
-        elif keys[pygame.K_RIGHT]:
-            self.velocity.x += self.attributes["acceleration"] * dt
-            self.facing_right = True
+            horizontal_input -= 1
+        if keys[pygame.K_RIGHT]:
+            horizontal_input += 1
+
+        if horizontal_input != 0:
+            self.velocity.x += horizontal_input * self.attributes["acceleration"] * dt
         else:
             if self.velocity.x != 0:
-                decel = self.attributes["friction"] * dt
-                decel += abs(self.velocity.x) * 6.0 * dt
+                friction = self.attributes["friction"] if self.on_ground else self.attributes["air_resistance"]
+                decel = friction * dt
                 if self.velocity.x > 0:
                     self.velocity.x = max(0, self.velocity.x - decel)
                 else:
                     self.velocity.x = min(0, self.velocity.x + decel)
 
         if keys[pygame.K_SPACE]:
-            if self.on_ground or self.attributes["jumps_left"] >= 1:
+            if self.on_ground:
                 self.velocity.y = self.attributes["jump_velocity"]
                 self.on_ground = False
-                self.attributes["jumps_left"] -= 1
+                self.attributes["jumps_left"] = self.attributes["max_jumps"] - 1
+            elif self.attributes["jumps_left"] > 0:
+                # Need to check for a new press for double jump
+                # Since we don't have a robust just_pressed without potentially missing frames in high dt
+                # we usually use events, but here we try get_just_pressed if available
+                try:
+                    if pygame.key.get_just_pressed()[pygame.K_SPACE]:
+                        self.velocity.y = self.attributes["jump_velocity"]
+                        self.attributes["jumps_left"] -= 1
+                except AttributeError:
+                    # Fallback for older pygame versions if necessary, though 2.2.0 is common now
+                    pass
 
-        if pygame.key.get_just_released()[pygame.K_SPACE]:
-            self.velocity.y = 0
+        # Variable jump height: if space is released while moving up, reduce vertical velocity
+        if not keys[pygame.K_SPACE] and self.velocity.y < 0:
+            self.velocity.y *= 0.5 * (1.0 - dt * 10) # Smoothly reduce velocity when jump key is released
+            if self.velocity.y > -10:
+                self.velocity.y = 0
