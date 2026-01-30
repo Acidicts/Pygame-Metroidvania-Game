@@ -23,6 +23,8 @@ class Player(PhysicsSprite):
             "max_jumps": 1
         }
 
+        self.player_scale = 1
+
         self.tilemap_name = "cave"
         self.tilemap = game.tilemaps[self.tilemap_name]
         self.game = game
@@ -89,20 +91,21 @@ class Player(PhysicsSprite):
             self.set_animation("idle")
 
     def load_animations(self):
+        TILE_SCALE = 0.25
         self.animations = {
-            "idle": (SpriteSheet("little_riven/Idle.png", tile_size=144, colorkey=None), 15, True),
-            "death": (SpriteSheet("little_riven/Death.png", tile_size=144, colorkey=None), 10, False),
-            "double_slash": (SpriteSheet("little_riven/Double Slash.png", tile_size=144, colorkey=None), 30,
+            "idle": (SpriteSheet("little_riven/Idle.png", tile_size=144, colorkey=None, scale=self.player_scale), 15, True),
+            "death": (SpriteSheet("little_riven/Death.png", tile_size=144, colorkey=None, scale=self.player_scale), 10, False),
+            "double_slash": (SpriteSheet("little_riven/Double Slash.png", tile_size=144, colorkey=None, scale=self.player_scale), 30,
                              False),
-            "fall": (SpriteSheet("little_riven/Fall.png", tile_size=144, colorkey=None), 15, True),
-            "hurt": (SpriteSheet("little_riven/Hurt.png", tile_size=144, colorkey=None), 15, False),
-            "idle_break": (SpriteSheet("little_riven/Idle Break.png", tile_size=144, colorkey=None), 30, False),
-            "jump": (SpriteSheet("little_riven/Jump.png", tile_size=144, colorkey=None), 5, True),
-            "run": (SpriteSheet("little_riven/Run.png", tile_size=144, colorkey=None), 10, True),
-            "slash": (SpriteSheet("little_riven/Slash.png", tile_size=144, colorkey=None), 30, False),
-            "smoke_in": (SpriteSheet("little_riven/Smoke In.png", tile_size=144, colorkey=None), 10, False),
-            "smoke_out": (SpriteSheet("little_riven/Smoke Out.png", tile_size=144, colorkey=None), 10, False),
-            "special_skill": (SpriteSheet("little_riven/Special Skill.png", tile_size=144, colorkey=None), 10,
+            "fall": (SpriteSheet("little_riven/Fall.png", tile_size=144, colorkey=None, scale=self.player_scale), 15, True),
+            "hurt": (SpriteSheet("little_riven/Hurt.png", tile_size=144, colorkey=None, scale=self.player_scale), 15, False),
+            "idle_break": (SpriteSheet("little_riven/Idle Break.png", tile_size=144, colorkey=None, scale=self.player_scale), 30, False),
+            "jump": (SpriteSheet("little_riven/Jump.png", tile_size=144, colorkey=None, scale=self.player_scale), 5, True),
+            "run": (SpriteSheet("little_riven/Run.png", tile_size=144, colorkey=None, scale=self.player_scale), 10, True),
+            "slash": (SpriteSheet("little_riven/Slash.png", tile_size=144, colorkey=None, scale=self.player_scale), 30, False),
+            "smoke_in": (SpriteSheet("little_riven/Smoke In.png", tile_size=144, colorkey=None, scale=self.player_scale), 10, False),
+            "smoke_out": (SpriteSheet("little_riven/Smoke Out.png", tile_size=144, colorkey=None, scale=self.player_scale), 10, False),
+            "special_skill": (SpriteSheet("little_riven/Special Skill.png", tile_size=144, colorkey=None, scale=self.player_scale), 10,
                               False),
         }
 

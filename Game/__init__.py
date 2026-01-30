@@ -22,8 +22,9 @@ class Game:
         self.tilemaps = {}
         self.load()
 
-        self.player = Player(self, position=pygame.Vector2(100, 50))
+        self.player = Player(self, position=pygame.Vector2(100, -1000))
         self.player_tilemap = self.tilemaps["cave"]
+
         self.current_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
         self.target_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
         self.current_tint_colour = pygame.Vector3(self.player_tilemap.tint_colour)
@@ -33,17 +34,21 @@ class Game:
         self._update_vignette()
 
     def _create_vignette_mask(self):
-        self.vignette_mask = pygame.Surface(self.screen.get_size(), pygame.SRCALPHA)
-        for y in range(self.vignette_mask.get_height()):
-            for x in range(self.vignette_mask.get_width()):
-                # Distance from center
-                dist = pygame.Vector2(x, y).distance_to(pygame.Vector2(self.vignette_mask.get_width() / 2, self.vignette_mask.get_height() / 2))
-                # Normalize distance (0 to 1)
-                norm_dist = dist / (pygame.Vector2(0, 0).distance_to(pygame.Vector2(self.vignette_mask.get_width() / 2, self.vignette_mask.get_height() / 2)))
-                # Weak vignette: start appearing after 0.4 distance
-                alpha = int(max(0, (norm_dist - 0.4) * 2) * 255)
-                alpha = min(alpha, 150) # Cap alpha to keep it "weak"
-                self.vignette_mask.set_at((x, y), (255, 255, 255, alpha))
+        size = self.screen.get_size()
+        
+        radial_grad = pygame.Surface((512, 512), pygame.SRCALPHA)
+        center = 256
+        for r in range(center, 0, -1):
+            alpha = int(max(0, (r / float(center) - 0.1)) * 255)
+            alpha = min(alpha, 255)
+            pygame.draw.circle(radial_grad, (255, 255, 255, alpha), (center, center), r)
+        
+        self.vignette_mask = pygame.transform.smoothscale(radial_grad, (int(size[0] * 2.2), int(size[1] * 2.2)))
+        
+        final_mask = pygame.Surface(size, pygame.SRCALPHA)
+        mask_rect = self.vignette_mask.get_rect(center=(size[0] // 2, size[1] // 2))
+        final_mask.blit(self.vignette_mask, mask_rect)
+        self.vignette_mask = final_mask
 
     def _update_vignette(self):
         self.vignette = self.vignette_mask.copy()
@@ -52,7 +57,10 @@ class Game:
 
 
     def load(self):
-
+        config = get_config()
+        tile_size = config.get("tile_size", 32)
+        mossy_tile_scale = tile_size / 512.0
+        TILE_SCALE = 1
         self.assets = {
             "hud":
                 {
@@ -66,27 +74,29 @@ class Game:
                 },
             "cave":
                 {
-                    "big_rocks": SpriteSheet("cave_tiles/Cave - BigRocks1.png", cut=load_json_as_dict("cut_tiles_json/Cave-BigRocks1.json")),
-                    "floor": SpriteSheet("cave_tiles/Cave - Floor.png", cut=load_json_as_dict("cut_tiles_json/Cave-Floor.json")),
-                    "platform": SpriteSheet("cave_tiles/Cave - Platforms.png", cut=load_json_as_dict("cut_tiles_json/Cave-Platforms.json")),
+                    "big_rocks": SpriteSheet("cave_tiles/Cave - BigRocks1.png", cut=load_json_as_dict("cut_tiles_json/Cave-BigRocks1.json"), scale=TILE_SCALE),
+                    "floor": SpriteSheet("cave_tiles/Cave - Floor.png", cut=load_json_as_dict("cut_tiles_json/Cave-Floor.json"), scale=TILE_SCALE),
+                    "platform": SpriteSheet("cave_tiles/Cave - Platforms.png", cut=load_json_as_dict("cut_tiles_json/Cave-Platforms.json"), scale=TILE_SCALE),
                 },
-           "mossy":
+            "mossy":
                {
-                   "platform": SpriteSheet("mossy_tiles/Mossy - FloatingPlatforms.png", tile_size=512),
+                   "tile_set": SpriteSheet("mossy_tiles/Mossy - TileSet.png", tile_size=512, scale=mossy_tile_scale),
+                   "mossy_hills": SpriteSheet("mossy_tiles/Mossy - MossyHills.png", cut=load_json_as_dict("cut_tiles_json/Mossy-MossyHills.json"), scale=TILE_SCALE),
+                   "hanging_plants": SpriteSheet("mossy_tiles/Mossy - Hanging Plants.png", cut=load_json_as_dict("cut_tiles_json/Mossy-HangingPlants.json"), scale=TILE_SCALE),
+                   "platform": SpriteSheet("mossy_tiles/Mossy - FloatingPlatforms.png", cut=load_json_as_dict("cut_tiles_json/Mossy-FloatingPlatforms.json"), scale=TILE_SCALE),
                }
         }
 
-        config = get_config()
-        tile_size = config.get("tile_size", 32)
-        self.tilemaps["cave"] = TileMap(self, tile_size=tile_size, pos=(0, 0), rendered=True)
-        self.tilemaps["mossy"] = TileMap(self, tile_size=tile_size, pos=(30, -3), rendered=False)
+        positions = config.get("tilemap_positions", {})
+        
+        self.tilemaps["cave"] = TileMap(self, tile_size=tile_size, pos=positions.get("cave", (0, 0)), rendered=True)
+        self.tilemaps["mossy"] = TileMap(self, tile_size=tile_size, pos=positions.get("mossy", (0, 0)), rendered=False)
 
         maps = get_config()["tilemaps"]
 
         for name, tilemaps in self.tilemaps.items():
             tilemaps.load_map("Game/assets/" + maps[name])
 
-        # Debug: report loaded tile counts and sample tiles
         try:
             cfg = get_config()
         except Exception:
@@ -94,7 +104,6 @@ class Game:
         if cfg.get("debug", {}).get("show_platform_hitboxes", False):
             for name, tilemap in self.tilemaps.items():
                 print(f"[DEBUG] map '{name}' loaded tiles={len(tilemap.tile_map)}")
-                # show up to 5 sample tiles
                 samples = list(tilemap.tile_map.items())[:5]
                 for k, v in samples:
                     print(f"  sample tile key={k} -> {v}")
@@ -116,7 +125,6 @@ class Game:
                 self.target_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
                 self.target_tint_colour = pygame.Vector3(self.player_tilemap.tint_colour)
 
-            # Lerp colors
             fade_speed = 5.0 * dt
             if self.current_bg_colour.distance_to(self.target_bg_colour) > 0.1:
                 self.current_bg_colour = self.current_bg_colour.lerp(self.target_bg_colour, min(1.0, fade_speed))
@@ -135,26 +143,16 @@ class Game:
 
             self.camera.update(self.player)
 
-            try:
-                cfg = get_config()
-            except Exception:
-                cfg = {}
-            if cfg.get("debug", {}).get("show_collision_boxes", False):
-                print(f"[DEBUG] camera.offset={self.camera.offset}, player.rect={self.player.rect}")
-
-
             for tilemap in self.tilemaps.values():
                 tilemap.update(dt)
                 if tilemap.rendered:
-                    layers = sorted({tile.get('z', 0) for tile in tilemap.tile_map.values()})
-                    for layer in layers:
+                    for layer in tilemap._layers:
                         tilemap.render(self.screen, self.camera.offset, layer)
 
             self.player.draw(self.screen, self.camera.offset)
 
             self.screen.blit(self.vignette, (0, 0))
 
-            self.displayed_screen.fill((0, 0, 0))
             surf = self.displayed_screen
             self.displayed_screen.blit(pygame.transform.scale(self.screen, (surf.get_width(), surf.get_height())), (0, 0))
 

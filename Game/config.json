@@ -6,6 +6,10 @@
         "cave": "level/cave.json",
         "mossy": "level/mossy.json"
     },
+    "tilemap_positions": {
+        "cave": [0, 0],
+        "mossy": [30, -3]
+    },
     "debug": {
         "show_collision_boxes": false,
         "show_sensors": false,

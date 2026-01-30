@@ -32,11 +32,12 @@ def load_json_as_dict(path):
     return data
 
 class SpriteSheet:
-    def __init__(self, path, tile_size=None, cut=None, colorkey=None):
+    def __init__(self, path, tile_size=None, cut=None, colorkey=None, scale=1.0):
         self.images = {}
         self.path = path
         self.tile_size = tile_size
         self.colorkey = colorkey
+        self.scale = scale
 
         self.cut = cut if cut is not None else {"0": (0, 0, 64, 64)}
 
@@ -53,6 +54,9 @@ class SpriteSheet:
             for x in range(0, rect.width, self.tile_size):
                 temp = pygame.Surface((self.tile_size, self.tile_size), flags=pygame.SRCALPHA)
                 temp.blit(base, (0, 0), pygame.Rect(x, y, self.tile_size, self.tile_size))
+                if self.scale != 1.0:
+                    new_size = (int(self.tile_size * self.scale), int(self.tile_size * self.scale))
+                    temp = pygame.transform.scale(temp, new_size)
                 self.images[(x, y)] = temp
 
     def cut_images(self):
@@ -66,6 +70,9 @@ class SpriteSheet:
             if w > 0 and h > 0:
                 temp = pygame.Surface((w, h), flags=pygame.SRCALPHA)
                 temp.blit(base, (0, 0), pygame.Rect(x, y, w, h))
+                if self.scale != 1.0:
+                    new_size = (int(w * self.scale), int(h * self.scale))
+                    temp = pygame.transform.scale(temp, new_size)
                 self.images[str(key)] = temp
 
     def get_images_list(self):

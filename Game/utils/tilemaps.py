@@ -1,4 +1,6 @@
 import pygame
+import random
+import json
 
 from Game.utils.config import *
 from Game.utils.spritegroup import SpriteGroup
@@ -67,10 +69,22 @@ class TileMap:
 
         self.width = 0
         self.height = 0
-        self.tile_size = 0
 
         self.bg_colour = (45, 45, 45)
         self.tint_colour = (12, 12, 12)
+
+        self.noise_surface = self._generate_noise_surface()
+        self._tile_cache = {}
+        self._layers = []
+        self._fade_cache = {}
+
+    def _generate_noise_surface(self, size=128):
+        noise = pygame.Surface((size, size), pygame.SRCALPHA)
+        for x in range(0, size, 4):
+            for y in range(0, size, 4):
+                alpha = random.randint(0, 255)
+                pygame.draw.rect(noise, (0, 0, 0, alpha), (x, y, 4, 4))
+        return noise
 
     def load_map(self, p):
         with open(p, 'r') as f:
@@ -82,6 +96,13 @@ class TileMap:
 
         self.bg_colour = data.get('bg_colour', self.bg_colour)
         self.tint_colour = data.get('tint_colour', self.tint_colour)
+
+        temp_layers = set()
+        for layer in data['layers']:
+            if layer['type'] == 'tilelayer':
+                for tile in layer['data']:
+                    temp_layers.add(int(tile['z']))
+        self._layers = sorted(list(temp_layers))
 
         for layer in data['layers']:
 
@@ -287,84 +308,94 @@ class TileMap:
 
     def render(self, surface, camera_offset, layer):
         camera_offset = pygame.math.Vector2(camera_offset)
-        from Game.utils.config import get_config
-        config = get_config()
-        if config.get("debug", {}).get("show_platform_hitboxes", False):
-            print(f"[DEBUG] TileMap.render: tiles={len(self.tile_map)}, layer={layer}, camera_offset={camera_offset}")
-        screen_height = config["resolution"][1]
+        surf_w, surf_h = surface.get_size()
+        
+        left = int(camera_offset.x // self.tile_size) - 1
+        top = int(camera_offset.y // self.tile_size) - 1
+        right = int((camera_offset.x + surf_w) // self.tile_size) + 1
+        bottom = int((camera_offset.y + surf_h) // self.tile_size) + 1
 
-        for tile in self.tile_map.values():
-            if tile["variant"] == "dark" or "dark" in tile.get("properties", []):
-                x = tile['x'] * self.tile_size - camera_offset.x
-                y = (tile['y']) * self.tile_size - camera_offset.y + (self.tile_size * 0.05)
-                height = screen_height - y
-                if height > 0:
-                    pygame.draw.rect(surface, (0, 0, 0), (x, y, self.tile_size, self.tile_size))
+        if len(self._layers) > 0 and layer == self._layers[0]:
+            for x in range(left, right + 1):
+                for y in range(top, bottom + 1):
+                    tile = self.tile_map.get((x, y))
+                    if not tile: continue
+                    if tile["variant"] == "dark" or "dark" in tile.get("properties", []):
+                        tx = tile['x'] * self.tile_size - camera_offset.x
+                        ty = tile['y'] * self.tile_size - camera_offset.y + (self.tile_size * 0.05)
+                        pygame.draw.rect(surface, (0, 0, 0), (tx, ty, self.tile_size, self.tile_size))
 
-        self.chests.draw(surface, camera_offset)
+                        def is_dark(itx, ity):
+                            t = self.tile_map.get((itx, ity))
+                            return t and (t.get('variant') == 'dark' or 'dark' in t.get('properties', []))
 
-        self.items.draw(surface, (camera_offset.x, camera_offset.y))
+                        has_bottom = is_dark(tile['x'], tile['y'] + 1)
+                        has_left = is_dark(tile['x'] - 1, tile['y'])
+                        has_right = is_dark(tile['x'] + 1, tile['y'])
 
-        self.enemies.draw(surface, (camera_offset.x, camera_offset.y))
+                        if not has_bottom:
+                            if 'bottom' not in self._fade_cache:
+                                f_surf = pygame.Surface((self.tile_size, self.tile_size), pygame.SRCALPHA)
+                                for i in range(self.tile_size):
+                                    alpha = int(255 * (1 - i / self.tile_size) * 0.5)
+                                    pygame.draw.line(f_surf, (0, 0, 0, alpha), (0, i), (self.tile_size, i))
+                                self._fade_cache['bottom'] = f_surf
+                            surface.blit(self._fade_cache['bottom'], (tx, ty + self.tile_size))
 
-        self.breakables.draw(surface, (camera_offset.x, camera_offset.y))
+                        if not has_left:
+                            if 'left' not in self._fade_cache:
+                                f_surf = pygame.Surface((self.tile_size, self.tile_size), pygame.SRCALPHA)
+                                for i in range(self.tile_size):
+                                    alpha = int(255 * (i / self.tile_size) * 0.5)
+                                    pygame.draw.line(f_surf, (0, 0, 0, alpha), (i, 0), (i, self.tile_size))
+                                self._fade_cache['left'] = f_surf
+                            surface.blit(self._fade_cache['left'], (tx, ty), special_flags=pygame.BLEND_RGBA_MIN)
 
-        for tile in self.tile_map.values():
-            if tile.get("z") != layer:
-                continue
+                        if not has_right:
+                            if 'right' not in self._fade_cache:
+                                f_surf = pygame.Surface((self.tile_size, self.tile_size), pygame.SRCALPHA)
+                                for i in range(self.tile_size):
+                                    alpha = int(255 * (1 - i / self.tile_size) * 0.5)
+                                    pygame.draw.line(f_surf, (0, 0, 0, alpha), (i, 0), (i, self.tile_size))
+                                self._fade_cache['right'] = f_surf
+                            surface.blit(self._fade_cache['right'], (tx, ty), special_flags=pygame.BLEND_RGBA_MIN)
 
-            if tile.get("variant") is None:
-                continue
+            self.chests.draw(surface, camera_offset)
+            self.items.draw(surface, (camera_offset.x, camera_offset.y))
+            self.enemies.draw(surface, (camera_offset.x, camera_offset.y))
+            self.breakables.draw(surface, (camera_offset.x, camera_offset.y))
 
-            env = tile.get('environment')
-            ttype = tile.get('type')
-            if tile.get("variant") == "dark":
-                continue
-            variant = int(tile.get('variant'))
+        for x in range(left, right + 1):
+            for y in range(top, bottom + 1):
+                tile = self.tile_map.get((x, y))
+                if not tile or tile.get("z") != layer or tile.get("variant") is None or tile.get("variant") == "dark":
+                    continue
 
-            try:
-                img = self.game.assets[env][ttype].get_images_list()[variant]
-            except (KeyError, IndexError):
-                img = None
+                env = tile.get('environment')
+                ttype = tile.get('type')
+                variant = int(tile.get('variant'))
+                cache_key = (env, ttype, variant)
 
-            if img is None:
-                continue
-
-            try:
-                img = pygame.transform.scale(img, (scale_sizing[env][ttype].get(str(variant), (self.tile_size, self.tile_size))))
-            except (TypeError, KeyError):
-                img = pygame.transform.scale(img, (self.tile_size, self.tile_size))
-
-            world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
-
-            screen_pos = (int(world_pos[0] - camera_offset.x), int(world_pos[1] - camera_offset.y))
-
-            surface.blit(img, screen_pos)
-
-        for tile in self.tile_map.values():
-            world_pos = (tile['x'] * self.tile_size, tile['y'] * self.tile_size)
-
-            screen_pos = (int(world_pos[0] - camera_offset.x), int(world_pos[1] - camera_offset.y))
-            if 'solid' in tile.get('properties', []) and config.get("debug", {}).get("show_platform_hitboxes", False):
-                debug_rect = pygame.Rect(
-                    screen_pos[0],
-                    screen_pos[1],
-                    self.tile_size,
-                    self.tile_size
-                )
-                pygame.draw.rect(surface, (0, 255, 0), debug_rect, 1)
-
-        for sensor in self.sensors.values():
-            if config.get("debug", {}).get("show_sensors", False):
-                rect = pygame.Rect(sensor["x"]*self.tile_size - camera_offset.x, sensor["y"]*self.tile_size - camera_offset.y, sensor["w"]*self.tile_size, sensor["h"]*self.tile_size)
-                pygame.draw.rect(surface, (255, 0, 0), rect, 1)
+                if cache_key not in self._tile_cache:
+                    try:
+                        img = self.game.assets[env][ttype].get_images_list()[variant]
+                        if env in scale_sizing and ttype in scale_sizing[env] and str(variant) in scale_sizing[env][ttype]:
+                            size = scale_sizing[env][ttype][str(variant)]
+                            img = pygame.transform.scale(img, size)
+                        self._tile_cache[cache_key] = img
+                    except (KeyError, IndexError):
+                        continue
+                
+                surface.blit(self._tile_cache[cache_key], (tile['x'] * self.tile_size - camera_offset.x, tile['y'] * self.tile_size - camera_offset.y))
 
         self.crystals.draw(surface, (camera_offset.x, camera_offset.y))
 
         if self.overlay and self.rendered:
-            overlay_img = pygame.image.load(self.overlay).convert_alpha()
-            overlay_img = pygame.transform.scale(overlay_img, (self.width * self.tile_size, self.height * self.tile_size))
-            surface.blit(overlay_img, (-camera_offset.x, - camera_offset.y))
+            if 'overlay' not in self._tile_cache:
+                overlay_img = pygame.image.load(self.overlay).convert_alpha()
+                overlay_img = pygame.transform.scale(overlay_img, (self.width * self.tile_size, self.height * self.tile_size))
+                self._tile_cache['overlay'] = overlay_img
+            surface.blit(self._tile_cache['overlay'], (-camera_offset.x, - camera_offset.y))
 
     def is_solid(self, pos, offset):
         x = pos[0] // self.tile_size
