@@ -6,6 +6,12 @@ configs = get_config()
 
 
 def px_to_grid(px):
+    if px is None:
+        return None
+    if type(px) == tuple:
+        return (px[0] // configs["tile_size"], px[1] // configs["tile_size"])
+    if type(px) == int:
+        return px // configs["tile_size"]
     return px // configs["tile_size"]
 
 

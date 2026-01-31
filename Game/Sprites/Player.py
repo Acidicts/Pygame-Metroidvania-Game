@@ -18,6 +18,8 @@ class Player(PhysicsSprite):
             "air_resistance": 200,
             "terminal_velocity": 800,
             "max_health": 10,
+            "current_max_health": 5,
+            "health": 5,
             "jump_velocity": -600,
             "jumps_left": 1,
             "max_jumps": 1
