@@ -1,5 +1,6 @@
 import pygame
 
+from .Sprites.Enemies.GroundCrawler import GroundCrawler
 from .utils.camera import Camera
 from .utils.tilemaps import *
 from .utils.utils import *
@@ -22,8 +23,10 @@ class Game:
         self.tilemaps = {}
         self.load()
 
-        self.player = Player(self, position=pygame.Vector2(100, -1000))
+        self.player = Player(self, position=pygame.Vector2(100, 100))
         self.player_tilemap = self.tilemaps["cave"]
+        self.enemy = GroundCrawler(pygame.Surface((16,16)), (100, 100), self, self.tilemaps["cave"])
+        self.enemy.image.fill((255,0,0))
 
         self.current_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
         self.target_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
@@ -118,13 +121,6 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
 
-            self.player.update(dt)
-            new_tilemap_name, new_tilemap = find_tilemap_for_rect(self.tilemaps, self.player.rect)
-            if new_tilemap and new_tilemap != self.player_tilemap:
-                self.player_tilemap = new_tilemap
-                self.target_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
-                self.target_tint_colour = pygame.Vector3(self.player_tilemap.tint_colour)
-
             fade_speed = 5.0 * dt
             if self.current_bg_colour.distance_to(self.target_bg_colour) > 0.1:
                 self.current_bg_colour = self.current_bg_colour.lerp(self.target_bg_colour, min(1.0, fade_speed))
@@ -149,10 +145,17 @@ class Game:
                     for layer in tilemap._layers:
                         tilemap.render(self.screen, self.camera.offset, layer)
 
+            # Update and draw player and enemies to the off-screen surface
+            self.player.update(dt)
+            self.enemy.update(dt)
+
+            # Draw player, enemies, HUD, then vignette overlay
             self.player.draw(self.screen, self.camera.offset)
+            self.enemy.draw(self.screen, self.camera.offset)
 
             self.screen.blit(self.vignette, (0, 0))
 
+            # Scale the off-screen buffer to the displayed screen
             surf = self.displayed_screen
             self.displayed_screen.blit(pygame.transform.scale(self.screen, (surf.get_width(), surf.get_height())), (0, 0))
 

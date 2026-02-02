@@ -32,11 +32,11 @@
       "type": "tilelayer",
       "name": "Ground",
       "data": [
-        {"x": -4, "y": 10, "z": 5, "w": 34, "h": 1, "type": "platform" ,"variant": "dark", "properties": ["dark", "repeat"], "offset": [0, 0],
+        {"x": -4, "y": 10, "z": 5, "w": 34, "h": 1, "type": "platform" ,"variant": "dark", "properties": ["solid", "dark", "repeat"], "offset": [0, 0],
           "render_cut": [0, 0], "nick": "ground", "solid_depth": 0, "dark_depth": 6
         },
         {"x": -4, "y": 5, "z": 5, "w": 10, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "alternate"], "offset": [0, 0],
-          "render_cut": [1, 0], "alternate": 1, "dark_depth": 0, "solid_depth": 0
+          "render_cut": [1, 0], "dark_depth": 0, "solid_depth": 0, "alternate": 1
         },
         {"x": -4, "y": 10, "z": 5, "w": 10, "h": 1, "type": "platform" ,"variant": 1, "properties": ["solid", "repeat", "dark", "alternate"], "offset":  [0, 0],
           "render_cut": [1, 0], "solid_depth": 0, "dark_depth": 2, "alternate": 1

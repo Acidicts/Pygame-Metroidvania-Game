@@ -1,94 +1,183 @@
 import pygame
-from Game.utils.helpers import px_to_grid
+
+from Game.Sprites.Sprite import Sprite
 
 
-class PhysicsSprite(pygame.sprite.Sprite):
+class PhysicsSprite(Sprite):
     def __init__(self, image, position, game, velocity=(0, 0), acceleration=(0, 0)):
-        super().__init__()
+        super().__init__(image, position)
         self.image = image
         self.game = game
         self.rect = self.image.get_rect(topleft=position)
-        self.pre_fram_rect = self.rect.copy()
+
+        # Single source of truth: pos is the float position
+        self.pos = pygame.math.Vector2(self.rect.topleft)
 
         self.velocity = pygame.math.Vector2(velocity)
         self.acceleration = pygame.math.Vector2(acceleration)
 
+        # Gravity in pixels / s^2
+        self.gravity = 2000
+        self.max_fall_speed = 2000
+
+        # Collision state flags
         self.collisions = {
-            "top": [False, False, False],
-            "bottom": [False, False, False],
-            "left": [False, False, False],
-            "right": [False, False, False]
+            "top": False,
+            "bottom": False,
+            "left": False,
+            "right": False
         }
 
-    def _solid_tiles_in_rect(self, rect):
+    def _get_solid_tiles_in_rect(self, rect):
+        """Get all solid tile rects that intersect with the given rect."""
         solid_rects = []
+
+        # Debug - only print once
+        debug = not getattr(self, '_debug_done', False)
+
         for tilemap in self.game.tilemaps.values():
+            if not tilemap.rendered:
+                continue
+
             tile_size = tilemap.tile_size
             if tile_size <= 0:
                 continue
-            left = rect.left // tile_size - 1
-            right = rect.right // tile_size + 1
-            top = rect.top // tile_size - 1
-            bottom = rect.bottom // tile_size + 1
 
-            for gx in range(int(left), int(right) + 1):
-                for gy in range(int(top), int(bottom) + 1):
+            # Calculate grid bounds - don't clamp to tilemap bounds since tiles can be at any position
+            left = int(rect.left // tile_size) - 1
+            right = int(rect.right // tile_size) + 1
+            top = int(rect.top // tile_size) - 1
+            bottom = int(rect.bottom // tile_size) + 1
+
+            if debug:
+                print(f"[DEBUG] rect={rect}, grid range x=[{left},{right}] y=[{top},{bottom}]")
+                print(f"[DEBUG] tilemap has {len(tilemap.tile_map)} tiles, rendered={tilemap.rendered}")
+                # Check for tiles at y=5 (the platform the player should land on)
+                tiles_at_y5 = [(k, v) for k, v in tilemap.tile_map.items() if k[1] == 5]
+                print(f"[DEBUG] tiles at y=5: {len(tiles_at_y5)}")
+                if tiles_at_y5:
+                    for k, v in tiles_at_y5[:3]:
+                        print(f"  tile {k}: props={v.get('properties')}")
+                self._debug_done = True
+
+            for gx in range(left, right + 1):
+                for gy in range(top, bottom + 1):
                     tile = tilemap.get_tile(gx, gy)
                     if tile is None:
                         continue
-                    if "solid" not in tile.get('properties', []):
-                        continue
-                    solid_rects.append(pygame.Rect(gx * tile_size, gy * tile_size, tile_size, tile_size))
+
+                    # Check if 'solid' in properties.
+                    properties = tile.get('properties', [])
+                    if "solid" in properties:
+                         solid_rects.append(pygame.Rect(gx * tile_size, gy * tile_size, tile_size, tile_size))
+
         return solid_rects
 
     def _reset_collisions(self):
+        """Reset all collision flags."""
         self.collisions = {
-            "top": [False, False, False],
-            "bottom": [False, False, False],
-            "left": [False, False, False],
-            "right": [False, False, False]
+            "top": False,
+            "bottom": False,
+            "left": False,
+            "right": False
         }
 
-    def _resolve_axis(self, axis):
-        solid_rects = self._solid_tiles_in_rect(self.pre_fram_rect)
-        hits = [tile for tile in solid_rects if self.pre_fram_rect.colliderect(tile)]
-        if not hits:
-            return
+    def _move_and_collide(self, dx, dy):
+        """
+        Move the sprite by dx, dy and resolve collisions using step-based AABB.
+        This prevents tunneling at high velocities.
+        """
+        STEPSIZE = 8  # Smaller step size for better collision detection
 
-        if axis == "x":
-            if self.velocity.x > 0:
-                nearest = min(tile.left for tile in hits)
-                self.pre_fram_rect.right = nearest
-                self.collisions["right"] = [True, True, True]
-            elif self.velocity.x < 0:
-                nearest = max(tile.right for tile in hits)
-                self.pre_fram_rect.left = nearest
-                self.collisions["left"] = [True, True, True]
-            self.velocity.x = 0
-        else:
-            if self.velocity.y > 0:
-                nearest = min(tile.top for tile in hits)
-                self.pre_fram_rect.bottom = nearest
-                self.collisions["bottom"] = [True, True, True]
-            elif self.velocity.y < 0:
-                nearest = max(tile.bottom for tile in hits)
-                self.pre_fram_rect.top = nearest
-                self.collisions["top"] = [True, True, True]
-            self.velocity.y = 0
+        # Move horizontally with stepping
+        remaining_x = dx
+        while abs(remaining_x) > 0.01:
+            step = max(-STEPSIZE, min(STEPSIZE, remaining_x))
+
+            self.pos.x += step
+            self.rect.x = int(round(self.pos.x))
+
+            # Check for collision
+            collided = False
+            solid_rects = self._get_solid_tiles_in_rect(self.rect)
+            for tile_rect in solid_rects:
+                if self.rect.colliderect(tile_rect):
+                    if step > 0:  # Moving right
+                        self.rect.right = tile_rect.left
+                        self.collisions["right"] = True
+                    else:  # Moving left
+                        self.rect.left = tile_rect.right
+                        self.collisions["left"] = True
+                    self.pos.x = float(self.rect.x)
+                    self.velocity.x = 0
+                    collided = True
+                    break
+
+            if collided:
+                break
+            remaining_x -= step
+
+        # Move vertically with stepping
+        remaining_y = dy
+        while abs(remaining_y) > 0.01:
+            step = max(-STEPSIZE, min(STEPSIZE, remaining_y))
+
+            self.pos.y += step
+            self.rect.y = int(round(self.pos.y))
+
+            # Check for collision
+            collided = False
+            solid_rects = self._get_solid_tiles_in_rect(self.rect)
+            for tile_rect in solid_rects:
+                if self.rect.colliderect(tile_rect):
+                    if step > 0:  # Moving down
+                        self.rect.bottom = tile_rect.top
+                        self.collisions["bottom"] = True
+                    else:  # Moving up
+                        self.rect.top = tile_rect.bottom
+                        self.collisions["top"] = True
+                    self.pos.y = float(self.rect.y)
+                    self.velocity.y = 0
+                    collided = True
+                    break
+
+            if collided:
+                break
+            remaining_y -= step
+
+        # Final sync
+        self.rect.x = int(round(self.pos.x))
+        self.rect.y = int(round(self.pos.y))
+
+        return dx, dy
+
+    def apply_gravity(self, dt):
+        """Apply gravity to vertical velocity."""
+        self.velocity.y += self.gravity * dt
+        if self.velocity.y > self.max_fall_speed:
+            self.velocity.y = self.max_fall_speed
 
     def update(self, dt):
+        """Update physics with clean, consistent resolution."""
+        # Debug - only print once per sprite class
+        if not getattr(self, '_update_debug_done', False):
+            print(f"[PhysicsSprite.update] Called for {self.__class__.__name__}")
+            self._update_debug_done = True
+
         self._reset_collisions()
 
-        # prepare candidate rect
-        self.pre_fram_rect = self.rect.copy()
+        # Apply gravity
+        self.apply_gravity(dt)
 
-        # integrate physics
-        self.velocity += self.acceleration * dt
-        self.pre_fram_rect.x += int(self.velocity.x * dt)
-        self._resolve_axis("x")
+        # Apply acceleration (horizontal only, gravity is separate)
+        self.velocity.x += self.acceleration.x * dt
 
-        self.pre_fram_rect.y += int(self.velocity.y * dt)
-        self._resolve_axis("y")
+        # Calculate movement
+        dx = self.velocity.x * dt
+        dy = self.velocity.y * dt
 
-        # commit position
-        self.rect = self.pre_fram_rect.copy()
+        # Move and resolve collisions
+        self._move_and_collide(dx, dy)
+
+    def draw(self, screen, offset):
+        super().draw(screen, offset)

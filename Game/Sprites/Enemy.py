@@ -7,4 +7,8 @@ class Enemy(PhysicsSprite):
     def update(self, dt):
         if self.rect.colliderect(self.game.player.rect):
             self.game.player.attributes["health"] -= 1
+
         super().update(dt)
+
+    def draw(self, screen, offset):
+        super().draw(screen, offset)

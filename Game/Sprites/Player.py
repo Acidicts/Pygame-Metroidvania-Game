@@ -41,7 +41,8 @@ class Player(PhysicsSprite):
         self.on_ground = False
         self.facing_right = True
 
-        self.acceleration.y = 2000
+        # enable physics debug to help diagnose collisions
+        self.debug = True
 
     def _resolve_animation_name(self, base_name):
         if base_name.startswith("left_") or base_name.startswith("right_"):
@@ -126,7 +127,7 @@ class Player(PhysicsSprite):
             self.tilemap_name = tilemap_name
             self.tilemap = tilemap
 
-        self.on_ground = any(self.collisions["bottom"])
+        self.on_ground = self.collisions["bottom"]
 
         if self.on_ground:
             self.attributes["jumps_left"] = self.attributes["max_jumps"]

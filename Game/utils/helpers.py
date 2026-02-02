@@ -8,11 +8,19 @@ configs = get_config()
 def px_to_grid(px):
     if px is None:
         return None
-    if type(px) == tuple:
-        return (px[0] // configs["tile_size"], px[1] // configs["tile_size"])
-    if type(px) == int:
-        return px // configs["tile_size"]
-    return px // configs["tile_size"]
+    # If given a tuple (x, y) — convert to integer grid coordinates
+    if isinstance(px, tuple):
+        return (int(px[0] // configs["tile_size"]), int(px[1] // configs["tile_size"]))
+    # If given a single numeric value, return its integer grid index
+    try:
+        # Handles int/float-like values
+        return int(px // configs["tile_size"])
+    except Exception:
+        # Fallback: attempt to coerce to numbers then compute
+        try:
+            return int(float(px) // configs["tile_size"])
+        except Exception:
+            return None
 
 
 def grid_to_px(grid):
