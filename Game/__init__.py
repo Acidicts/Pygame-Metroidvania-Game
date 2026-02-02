@@ -25,8 +25,6 @@ class Game:
 
         self.player = Player(self, position=pygame.Vector2(100, 100))
         self.player_tilemap = self.tilemaps["cave"]
-        self.enemy = GroundCrawler(pygame.Surface((16,16)), (100, 100), self, self.tilemaps["cave"])
-        self.enemy.image.fill((255,0,0))
 
         self.current_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
         self.target_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
@@ -147,11 +145,19 @@ class Game:
 
             # Update and draw player and enemies to the off-screen surface
             self.player.update(dt)
-            self.enemy.update(dt)
+
+            # Update and draw enemies
+            for tilemap in self.tilemaps.values():
+                if tilemap.rendered:
+                    tilemap.enemies.update(dt)
 
             # Draw player, enemies, HUD, then vignette overlay
             self.player.draw(self.screen, self.camera.offset)
-            self.enemy.draw(self.screen, self.camera.offset)
+
+            # Draw enemies
+            for tilemap in self.tilemaps.values():
+                if tilemap.rendered:
+                    tilemap.enemies.draw(self.screen, self.camera.offset)
 
             self.screen.blit(self.vignette, (0, 0))
 

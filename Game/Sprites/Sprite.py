@@ -17,7 +17,11 @@ class Sprite:
             except Exception:
                 offx = 0
                 offy = 0
-        pos = (int(self.rect.x - offx), int(self.rect.y - offy))
+        # Use hasattr to check if pos attribute exists (for PhysicsSprite compatibility)
+        if hasattr(self, 'pos'):
+            pos = (int(self.pos.x - offx), int(self.pos.y - offy))
+        else:
+            pos = (int(self.rect.x - offx), int(self.rect.y - offy))
         surf.blit(self.image, pos)
 
     def update(self, dt):

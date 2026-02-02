@@ -14,13 +14,13 @@ class Player(PhysicsSprite):
             "max_speed": 200,
             "velocity": pygame.math.Vector2(0, 0),
             "acceleration": 1200,
-            "friction": 800,
-            "air_resistance": 200,
-            "terminal_velocity": 800,
+            "friction": 600,
+            "air_resistance": 100,
+            "terminal_velocity": 600,
             "max_health": 10,
             "current_max_health": 5,
             "health": 5,
-            "jump_velocity": -600,
+            "jump_velocity": -500,
             "jumps_left": 1,
             "max_jumps": 1
         }
@@ -174,8 +174,12 @@ class Player(PhysicsSprite):
             frame = pygame.transform.flip(frame, True, False)
 
         self.image = frame
-        draw_rect = frame.get_rect(midbottom=self.rect.midbottom)
-        surf.blit(frame, (draw_rect.x - camera_offset[0], draw_rect.y - camera_offset[1]))
+        # Use the precise position for drawing to reduce jittering
+        draw_pos = (
+            int(self.pos.x + (self.rect.width - frame.get_width()) // 2 - camera_offset[0]),
+            int(self.pos.y + self.rect.height - frame.get_height() - camera_offset[1])
+        )
+        surf.blit(frame, draw_pos)
 
     def controls(self, dt):
         keys = pygame.key.get_pressed()
@@ -187,10 +191,31 @@ class Player(PhysicsSprite):
             horizontal_input += 1
 
         if horizontal_input != 0:
-            self.velocity.x += horizontal_input * self.attributes["acceleration"] * dt
+            # Allow more responsive air control for floaty feel
+            target_speed = self.attributes["max_speed"] * horizontal_input
+            if self.on_ground:
+                # On ground, accelerate normally
+                self.velocity.x += horizontal_input * self.attributes["acceleration"] * dt
+                # Clamp to max speed
+                self.velocity.x = max(-self.attributes["max_speed"], min(self.attributes["max_speed"], self.velocity.x))
+            else:
+                # In air, allow more responsive control with reduced acceleration
+                air_acceleration = self.attributes["acceleration"] * 0.7  # Slightly reduced in air
+                if (target_speed > 0 and self.velocity.x < target_speed) or (target_speed < 0 and self.velocity.x > target_speed):
+                    self.velocity.x += horizontal_input * air_acceleration * dt
+                    # Clamp to max speed
+                    self.velocity.x = max(-self.attributes["max_speed"], min(self.attributes["max_speed"], self.velocity.x))
+                else:
+                    # Apply minimal air resistance when changing direction in air
+                    friction = self.attributes["air_resistance"] * 0.5
+                    decel = friction * dt
+                    if self.velocity.x > 0 and target_speed <= 0:
+                        self.velocity.x = max(target_speed, self.velocity.x - decel)
+                    elif self.velocity.x < 0 and target_speed >= 0:
+                        self.velocity.x = min(target_speed, self.velocity.x + decel)
         else:
             if self.velocity.x != 0:
-                friction = self.attributes["friction"] if self.on_ground else self.attributes["air_resistance"]
+                friction = self.attributes["friction"] if self.on_ground else self.attributes["air_resistance"] * 0.7  # Reduced air resistance for floatier feel
                 decel = friction * dt
                 if self.velocity.x > 0:
                     self.velocity.x = max(0, self.velocity.x - decel)
@@ -216,6 +241,6 @@ class Player(PhysicsSprite):
 
         # Variable jump height: if space is released while moving up, reduce vertical velocity
         if not keys[pygame.K_SPACE] and self.velocity.y < 0:
-            self.velocity.y *= 0.5 * (1.0 - dt * 10) # Smoothly reduce velocity when jump key is released
-            if self.velocity.y > -10:
-                self.velocity.y = 0
+            # Reduce upward velocity to make jump feel more controlled
+            # Instead of maintaining upward momentum, let gravity take over more quickly
+            self.velocity.y *= 0.3  # Reduce upward velocity significantly

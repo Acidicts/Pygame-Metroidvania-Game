@@ -48,7 +48,6 @@ class GroundCrawler(Enemy):
         return True
 
     def _sample_ground_support(self):
-        """Sample multiple points ahead to detect ledges."""
         ts = self.tilemap.tile_size
         if ts <= 0:
             return True, False

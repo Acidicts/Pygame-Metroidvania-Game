@@ -17,8 +17,8 @@ class PhysicsSprite(Sprite):
         self.acceleration = pygame.math.Vector2(acceleration)
 
         # Gravity in pixels / s^2
-        self.gravity = 2000
-        self.max_fall_speed = 2000
+        self.gravity = 1200
+        self.max_fall_speed = 1200
 
         # Collision state flags
         self.collisions = {
@@ -29,11 +29,10 @@ class PhysicsSprite(Sprite):
         }
 
     def _get_solid_tiles_in_rect(self, rect):
-        """Get all solid tile rects that intersect with the given rect."""
         solid_rects = []
 
         # Debug - only print once
-        debug = not getattr(self, '_debug_done', False)
+        debug = False
 
         for tilemap in self.game.tilemaps.values():
             if not tilemap.rendered:
@@ -74,7 +73,6 @@ class PhysicsSprite(Sprite):
         return solid_rects
 
     def _reset_collisions(self):
-        """Reset all collision flags."""
         self.collisions = {
             "top": False,
             "bottom": False,
@@ -83,11 +81,7 @@ class PhysicsSprite(Sprite):
         }
 
     def _move_and_collide(self, dx, dy):
-        """
-        Move the sprite by dx, dy and resolve collisions using step-based AABB.
-        This prevents tunneling at high velocities.
-        """
-        STEPSIZE = 8  # Smaller step size for better collision detection
+        STEPSIZE = 2  # Reduced step size for smoother collision detection
 
         # Move horizontally with stepping
         remaining_x = dx
@@ -109,7 +103,9 @@ class PhysicsSprite(Sprite):
                         self.rect.left = tile_rect.right
                         self.collisions["left"] = True
                     self.pos.x = float(self.rect.x)
-                    self.velocity.x = 0
+                    # Only zero out velocity if we were moving in that direction
+                    if (step > 0 and self.velocity.x > 0) or (step < 0 and self.velocity.x < 0):
+                        self.velocity.x = 0
                     collided = True
                     break
 
@@ -137,7 +133,9 @@ class PhysicsSprite(Sprite):
                         self.rect.top = tile_rect.bottom
                         self.collisions["top"] = True
                     self.pos.y = float(self.rect.y)
-                    self.velocity.y = 0
+                    # Only zero out velocity if we were moving in that direction
+                    if (step > 0 and self.velocity.y > 0) or (step < 0 and self.velocity.y < 0):
+                        self.velocity.y = 0
                     collided = True
                     break
 
@@ -145,32 +143,28 @@ class PhysicsSprite(Sprite):
                 break
             remaining_y -= step
 
-        # Final sync
-        self.rect.x = int(round(self.pos.x))
-        self.rect.y = int(round(self.pos.y))
+        # Final sync - keep pos and rect in sync properly
+        self.pos.x = self.rect.x
+        self.pos.y = self.rect.y
 
         return dx, dy
 
     def apply_gravity(self, dt):
-        """Apply gravity to vertical velocity."""
         self.velocity.y += self.gravity * dt
         if self.velocity.y > self.max_fall_speed:
             self.velocity.y = self.max_fall_speed
 
     def update(self, dt):
-        """Update physics with clean, consistent resolution."""
-        # Debug - only print once per sprite class
         if not getattr(self, '_update_debug_done', False):
-            print(f"[PhysicsSprite.update] Called for {self.__class__.__name__}")
             self._update_debug_done = True
 
         self._reset_collisions()
 
-        # Apply gravity
-        self.apply_gravity(dt)
-
         # Apply acceleration (horizontal only, gravity is separate)
         self.velocity.x += self.acceleration.x * dt
+
+        # Apply gravity
+        self.apply_gravity(dt)
 
         # Calculate movement
         dx = self.velocity.x * dt
@@ -178,6 +172,10 @@ class PhysicsSprite(Sprite):
 
         # Move and resolve collisions
         self._move_and_collide(dx, dy)
+
+        # Sync position after collision resolution
+        self.pos.x = float(self.rect.x)
+        self.pos.y = float(self.rect.y)
 
     def draw(self, screen, offset):
         super().draw(screen, offset)
