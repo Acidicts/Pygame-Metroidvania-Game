@@ -5,9 +5,6 @@ class Enemy(PhysicsSprite):
         super().__init__(image, position, game)
 
     def update(self, dt):
-        if self.rect.colliderect(self.game.player.rect):
-            self.game.player.attributes["health"] -= 1
-
         super().update(dt)
 
     def draw(self, screen, offset):

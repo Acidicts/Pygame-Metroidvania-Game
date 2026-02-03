@@ -111,7 +111,6 @@ class Game:
                 if len(tilemap.tile_map) == 0:
                     print(f"  WARNING: tile_map for '{name}' is empty")
 
-
     def run(self):
         while self.running:
             dt = self.clock.tick(60) / 1000.0

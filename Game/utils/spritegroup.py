@@ -7,6 +7,9 @@ class SpriteGroup:
             if hasattr(sprite, 'id'):
                 self.sprite_dict[sprite.id] = sprite
 
+    def sprites(self):
+        return self.sprite_dict.values()
+
     def append(self, sprite):
         if hasattr(sprite, 'id'):
             self.sprite_dict[sprite.id] = sprite

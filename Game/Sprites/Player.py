@@ -22,7 +22,9 @@ class Player(PhysicsSprite):
             "health": 5,
             "jump_velocity": -500,
             "jumps_left": 1,
-            "max_jumps": 1
+            "max_jumps": 1,
+
+            "immunity": 0
         }
 
         self.player_scale = 1
@@ -41,8 +43,29 @@ class Player(PhysicsSprite):
         self.on_ground = False
         self.facing_right = True
 
-        # enable physics debug to help diagnose collisions
         self.debug = True
+
+    def check_enemy_collisions(self):
+        for enemy in self.tilemap.enemies.sprites():
+            if self.rect.colliderect(enemy.rect) and self.attributes["immunity"] <= 0:
+                print("Health {}, {}".format(self.attributes["health"], enemy.rect))
+                direction = -1
+                if enemy.rect.centerx > self.rect.centerx:
+                    direction = 1
+                self.take_damage(1, pygame.math.Vector2(-300 * direction, -200))
+
+    def take_damage(self, damage, direction):
+        self.attributes["health"] -= damage
+        if self.attributes["health"] < 0:
+            self.attributes["health"] = 0
+
+        self.attributes["immunity"] = 1.0
+
+        self.apply_knockback(direction)
+
+    def apply_knockback(self, vec):
+        self.velocity.x += vec.x
+        self.velocity.y += vec.y
 
     def _resolve_animation_name(self, base_name):
         if base_name.startswith("left_") or base_name.startswith("right_"):
@@ -94,7 +117,6 @@ class Player(PhysicsSprite):
             self.set_animation("idle")
 
     def load_animations(self):
-        TILE_SCALE = 0.25
         self.animations = {
             "idle": (SpriteSheet("little_riven/Idle.png", tile_size=144, colorkey=None, scale=self.player_scale), 15, True),
             "death": (SpriteSheet("little_riven/Death.png", tile_size=144, colorkey=None, scale=self.player_scale), 10, False),
@@ -122,6 +144,13 @@ class Player(PhysicsSprite):
         self.controls(dt)
         super().update(dt)
 
+        if self.attributes["immunity"] > 0:
+            self.attributes["immunity"] -= dt
+        else:
+            self.attributes["immunity"] = 0
+
+        self.check_enemy_collisions()
+
         tilemap_name, tilemap = find_tilemap_for_rect(self.game.tilemaps, self.rect)
         if tilemap is not None:
             self.tilemap_name = tilemap_name
@@ -146,7 +175,6 @@ class Player(PhysicsSprite):
         self._update_animation_direction()
         self.run_animation(dt)
 
-        # clamp terminal velocity
         if self.velocity.y > self.attributes["terminal_velocity"]:
             self.velocity.y = self.attributes["terminal_velocity"]
 
@@ -191,31 +219,26 @@ class Player(PhysicsSprite):
             horizontal_input += 1
 
         if horizontal_input != 0:
-            # Allow more responsive air control for floaty feel
             target_speed = self.attributes["max_speed"] * horizontal_input
             if self.on_ground:
-                # On ground, accelerate normally
                 self.velocity.x += horizontal_input * self.attributes["acceleration"] * dt
                 # Clamp to max speed
                 self.velocity.x = max(-self.attributes["max_speed"], min(self.attributes["max_speed"], self.velocity.x))
             else:
-                # In air, allow more responsive control with reduced acceleration
-                air_acceleration = self.attributes["acceleration"] * 0.7  # Slightly reduced in air
+                air_acceleration = self.attributes["acceleration"] * 0.7
                 if (target_speed > 0 and self.velocity.x < target_speed) or (target_speed < 0 and self.velocity.x > target_speed):
                     self.velocity.x += horizontal_input * air_acceleration * dt
-                    # Clamp to max speed
                     self.velocity.x = max(-self.attributes["max_speed"], min(self.attributes["max_speed"], self.velocity.x))
                 else:
-                    # Apply minimal air resistance when changing direction in air
                     friction = self.attributes["air_resistance"] * 0.5
                     decel = friction * dt
-                    if self.velocity.x > 0 and target_speed <= 0:
+                    if self.velocity.x > 0 >= target_speed:
                         self.velocity.x = max(target_speed, self.velocity.x - decel)
-                    elif self.velocity.x < 0 and target_speed >= 0:
+                    elif self.velocity.x < 0 <= target_speed:
                         self.velocity.x = min(target_speed, self.velocity.x + decel)
         else:
             if self.velocity.x != 0:
-                friction = self.attributes["friction"] if self.on_ground else self.attributes["air_resistance"] * 0.7  # Reduced air resistance for floatier feel
+                friction = self.attributes["friction"] if self.on_ground else self.attributes["air_resistance"] * 0.7
                 decel = friction * dt
                 if self.velocity.x > 0:
                     self.velocity.x = max(0, self.velocity.x - decel)
@@ -228,19 +251,12 @@ class Player(PhysicsSprite):
                 self.on_ground = False
                 self.attributes["jumps_left"] = self.attributes["max_jumps"] - 1
             elif self.attributes["jumps_left"] > 0:
-                # Need to check for a new press for double jump
-                # Since we don't have a robust just_pressed without potentially missing frames in high dt
-                # we usually use events, but here we try get_just_pressed if available
                 try:
                     if pygame.key.get_just_pressed()[pygame.K_SPACE]:
                         self.velocity.y = self.attributes["jump_velocity"]
                         self.attributes["jumps_left"] -= 1
                 except AttributeError:
-                    # Fallback for older pygame versions if necessary, though 2.2.0 is common now
                     pass
 
-        # Variable jump height: if space is released while moving up, reduce vertical velocity
-        if not keys[pygame.K_SPACE] and self.velocity.y < 0:
-            # Reduce upward velocity to make jump feel more controlled
-            # Instead of maintaining upward momentum, let gravity take over more quickly
-            self.velocity.y *= 0.3  # Reduce upward velocity significantly
+        if not keys[pygame.K_SPACE] and self.velocity.y < 0 and self.attributes["immunity"] <= 0:
+            self.velocity.y *= 0.3
