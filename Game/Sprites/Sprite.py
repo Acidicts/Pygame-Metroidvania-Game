@@ -1,7 +1,8 @@
 import pygame
 
-class Sprite:
+class Sprite(pygame.sprite.Sprite):
     def __init__(self, image, position):
+        super().__init__()
         self.image = image
         self.rect = self.image.get_rect(topleft=position)
 
@@ -26,3 +27,8 @@ class Sprite:
 
     def update(self, dt):
         pass
+
+    def kill(self):
+        super().kill()
+        if hasattr(self, 'sprite_group') and self.sprite_group:
+            self.sprite_group.remove(self)

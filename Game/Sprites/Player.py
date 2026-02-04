@@ -24,8 +24,16 @@ class Player(PhysicsSprite):
             "jumps_left": 1,
             "max_jumps": 1,
 
-            "immunity": 0
+            "immunity": 0,
+            "attack_cooldown": 0.5,
+            "attack_damage": 1,
+            "attack_timer": 0,  # Current time remaining in attack cooldown
         }
+
+        # Attack hitbox properties
+        self.attack_hitbox = None
+        self.is_attacking = False
+        self.attacked_enemies = set()
 
         self.player_scale = 1
 
@@ -48,7 +56,6 @@ class Player(PhysicsSprite):
     def check_enemy_collisions(self):
         for enemy in self.tilemap.enemies.sprites():
             if self.rect.colliderect(enemy.rect) and self.attributes["immunity"] <= 0:
-                print("Health {}, {}".format(self.attributes["health"], enemy.rect))
                 direction = -1
                 if enemy.rect.centerx > self.rect.centerx:
                     direction = 1
@@ -68,6 +75,11 @@ class Player(PhysicsSprite):
         self.velocity.y += vec.y
 
     def _resolve_animation_name(self, base_name):
+        # Don't apply directional prefixes to attack animations or other special animations
+        attack_animations = ["slash", "double_slash"]
+        if base_name in attack_animations:
+            return base_name
+
         if base_name.startswith("left_") or base_name.startswith("right_"):
             return base_name
 
@@ -88,6 +100,10 @@ class Player(PhysicsSprite):
             self.animation_frame = 0
 
     def _update_animation_direction(self):
+        # Don't update animation direction if we're in an attack animation
+        if self.animation_base in ["slash", "double_slash"]:
+            return
+
         resolved = self._resolve_animation_name(self.animation_base)
         if resolved != self.animation:
             self.animation = resolved
@@ -102,19 +118,21 @@ class Player(PhysicsSprite):
 
         if not images:
             return
-        if int(self.animation_frame) >= len(images):
-            if loop:
-                self.animation_frame = 0
-            else:
-                self.set_animation("idle")
-
-        if not images:
-            return
 
         self.animation_frame += speed * dt
 
-        if not loop and self.animation_frame >= len(images):
-            self.set_animation("idle")
+        if not loop and int(self.animation_frame) >= len(images):
+            # Animation has finished playing
+            if self.animation_base in ["slash", "double_slash"]:
+                # For attack animations, we handle the completion elsewhere
+                # Don't automatically switch to idle here
+                pass
+            else:
+                # For other non-looping animations, go back to idle
+                self.set_animation("idle")
+        elif int(self.animation_frame) >= len(images) and loop:
+            # For looping animations that have reached the end
+            self.animation_frame = 0
 
     def load_animations(self):
         self.animations = {
@@ -149,6 +167,17 @@ class Player(PhysicsSprite):
         else:
             self.attributes["immunity"] = 0
 
+        # Update facing direction
+        if self.velocity.x < -0.01:
+            self.facing_right = False
+        elif self.velocity.x > 0.01:
+            self.facing_right = True
+
+        # Attack logic
+        if self.is_attacking:
+            self.update_attack_hitbox()
+            self.check_attack_collisions()
+
         self.check_enemy_collisions()
 
         tilemap_name, tilemap = find_tilemap_for_rect(self.game.tilemaps, self.rect)
@@ -161,7 +190,10 @@ class Player(PhysicsSprite):
         if self.on_ground:
             self.attributes["jumps_left"] = self.attributes["max_jumps"]
 
-        if self.on_ground:
+        # Animation State
+        if self.is_attacking:
+            pass # Keep slash animation
+        elif self.on_ground:
             if abs(self.velocity.x) > 1:
                 self.set_animation("run")
             else:
@@ -174,6 +206,16 @@ class Player(PhysicsSprite):
 
         self._update_animation_direction()
         self.run_animation(dt)
+
+        # Check for attack animation completion
+        if self.is_attacking:
+             # Look up animation length
+             current_anim = self.animations.get(self.animation)
+             if current_anim:
+                 images = current_anim[0].get_images_list()
+                 if self.animation_frame >= len(images):
+                     self.is_attacking = False
+                     self.attack_hitbox = None
 
         if self.velocity.y > self.attributes["terminal_velocity"]:
             self.velocity.y = self.attributes["terminal_velocity"]
@@ -193,10 +235,6 @@ class Player(PhysicsSprite):
             index = min(int(self.animation_frame), len(images) - 1)
 
         frame = images[index]
-        if self.velocity.x < -0.01:
-            self.facing_right = False
-        elif self.velocity.x > 0.01:
-            self.facing_right = True
 
         if not self.facing_right:
             frame = pygame.transform.flip(frame, True, False)
@@ -209,8 +247,69 @@ class Player(PhysicsSprite):
         )
         surf.blit(frame, draw_pos)
 
+        # Draw attack hitbox for debugging if needed
+        if self.attack_hitbox and self.debug:
+            hitbox_surf = pygame.Surface((self.attack_hitbox.width, self.attack_hitbox.height), pygame.SRCALPHA)
+            hitbox_surf.fill((255, 0, 0, 100))  # Semi-transparent red
+            surf.blit(hitbox_surf, (self.attack_hitbox.x - camera_offset[0], self.attack_hitbox.y - camera_offset[1]))
+
+    def update_attack_hitbox(self):
+        if self.is_attacking:
+            if self.facing_right:
+                hitbox_x = self.rect.right  # Hitbox starts right after the player
+            else:
+                hitbox_x = self.rect.left - self.rect.width  # Hitbox starts to the left of the player
+
+            hitbox_y = self.rect.y + (self.rect.height // 4)  # Slightly below the top of the player
+
+            # Define hitbox dimensions (slightly larger than player for effective reach)
+            hitbox_width = self.rect.width
+            hitbox_height = self.rect.height // 2  # Half the player height
+
+            self.attack_hitbox = pygame.Rect(hitbox_x, hitbox_y, hitbox_width, hitbox_height)
+        else:
+            self.attack_hitbox = None
+
+    def check_attack_collisions(self):
+        """Check for collisions between the attack hitbox and enemies"""
+        if self.attack_hitbox and self.is_attacking:
+            for enemy in self.tilemap.enemies.sprites():
+                if self.attack_hitbox.colliderect(enemy.rect):
+                    if enemy not in self.attacked_enemies:
+                        # Damage the enemy
+                        enemy.take_damage(self.attributes["attack_damage"])
+
+                        knockback_direction = 1 if enemy.rect.centerx < self.rect.centerx else -1
+
+                        self.attacked_enemies.add(enemy)
+
+    def attack(self):
+        # Only allow attack if cooldown is finished
+        if self.attributes["attack_timer"] <= 0:
+            self.attributes["attack_timer"] = self.attributes["attack_cooldown"]
+            self.is_attacking = True
+            self.attacked_enemies.clear()
+
+            # Set the attack animation - it will not be prefixed with direction thanks to our fix
+            self.set_animation("slash")  # or "double_slash" for stronger attack
+
+            # Reset animation frame to start from the beginning
+            self.animation_frame = 0
+
+
     def controls(self, dt):
         keys = pygame.key.get_pressed()
+
+        # Update attack timer (cooldown)
+        if self.attributes["attack_timer"] > 0:
+            self.attributes["attack_timer"] -= dt
+            if self.attributes["attack_timer"] < 0:
+                self.attributes["attack_timer"] = 0
+
+        # Handle attack input
+        if keys[pygame.K_x] or keys[pygame.K_c]:  # Using X or C as attack buttons
+            self.attack()
+
 
         horizontal_input = 0
         if keys[pygame.K_LEFT]:

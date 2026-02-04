@@ -47,6 +47,15 @@ class GroundCrawler(Enemy):
             print(f"[GroundCrawler _do_flip] FLIP reason={reason} dir={self.direction}")
         return True
 
+    def take_damage(self, damage):
+        if self.rect.centerx > self.game.player.rect.centerx:
+            self.direction = 1
+        else:
+            self.direction = -1
+        self.apply_knockback(pygame.Vector2(self.direction*100, -100))
+
+        super().take_damage(damage)
+
     def _sample_ground_support(self):
         ts = self.tilemap.tile_size
         if ts <= 0:

@@ -36,16 +36,37 @@ class Game:
 
     def _create_vignette_mask(self):
         size = self.screen.get_size()
-        
-        radial_grad = pygame.Surface((512, 512), pygame.SRCALPHA)
-        center = 256
-        for r in range(center, 0, -1):
-            alpha = int(max(0, (r / float(center) - 0.1)) * 255)
-            alpha = min(alpha, 255)
-            pygame.draw.circle(radial_grad, (255, 255, 255, alpha), (center, center), r)
-        
+
+        # Create a higher resolution gradient surface for smoother transitions
+        grad_size = 1024  # Increased from 512 for more precision
+        center = grad_size // 2
+
+        radial_grad = pygame.Surface((grad_size, grad_size), pygame.SRCALPHA)
+
+        # Create a smoother vignette using a quadratic falloff
+        for y in range(grad_size):
+            for x in range(grad_size):
+                # Calculate distance from center
+                dx = x - center
+                dy = y - center
+                distance = (dx * dx + dy * dy) ** 0.5
+                max_distance = center
+
+                # Use a quadratic curve for smoother transition
+                # This creates a more gradual fall-off than linear
+                if distance <= max_distance:
+                    norm_dist = distance / max_distance
+                    alpha = (norm_dist * norm_dist)
+                    alpha = max(0, min(1, alpha ** 1.5))
+                    alpha_value = int(alpha * 255)
+
+                    radial_grad.set_at((x, y), (255, 255, 255, alpha_value))
+                else:
+                    radial_grad.set_at((x, y), (255, 255, 255, 0))
+
+        # Scale the gradient to fit the screen with some padding to ensure coverage
         self.vignette_mask = pygame.transform.smoothscale(radial_grad, (int(size[0] * 2.2), int(size[1] * 2.2)))
-        
+
         final_mask = pygame.Surface(size, pygame.SRCALPHA)
         mask_rect = self.vignette_mask.get_rect(center=(size[0] // 2, size[1] // 2))
         final_mask.blit(self.vignette_mask, mask_rect)
