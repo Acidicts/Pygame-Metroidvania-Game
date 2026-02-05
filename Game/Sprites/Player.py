@@ -2,8 +2,7 @@ import pygame
 from statistics import median
 
 from Game.Sprites.PhysicsSprite import PhysicsSprite
-from Game.utils.helpers import crop_to_content
-from Game.utils.tilemaps import find_tilemap_for_rect
+from Game.utils.helpers import crop_to_content, find_tilemap_for_rect
 from Game.utils.utils import SpriteSheet
 
 
@@ -27,7 +26,10 @@ class Player(PhysicsSprite):
             "immunity": 0,
             "attack_cooldown": 0.5,
             "attack_damage": 1,
-            "attack_timer": 0,  # Current time remaining in attack cooldown
+            "attack_timer": 0,
+
+            "movable": True,
+            "movable_timer": 0,
         }
 
         # Attack hitbox properties
@@ -159,6 +161,9 @@ class Player(PhysicsSprite):
                 sheet.images[image_key] = img
 
     def update(self, dt):
+        if self.attributes["movable_timer"] > 0:
+            self.attributes["movable_timer"] -= dt
+
         self.controls(dt)
         super().update(dt)
 
@@ -299,6 +304,14 @@ class Player(PhysicsSprite):
 
     def controls(self, dt):
         keys = pygame.key.get_pressed()
+
+        if not self.attributes["movable"]:
+            return
+
+        if keys[pygame.K_w]:
+            for npc in self.tilemap.npcs.sprites():
+                if self.rect.colliderect(npc.rect) and hasattr(npc, 'interact'):
+                    self.attributes["movable"] = npc.interact(self)
 
         # Update attack timer (cooldown)
         if self.attributes["attack_timer"] > 0:

@@ -74,3 +74,10 @@ def crop_to_content(surface, bg_color=None, empty_size=(1, 1)):
         pass
 
     return new_surf
+
+
+def find_tilemap_for_rect(tilemaps, rect):
+    for name, tilemap in tilemaps.items():
+        if tilemap.contains_rect(rect):
+            return name, tilemap
+    return None, None

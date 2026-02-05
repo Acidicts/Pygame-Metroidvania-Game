@@ -3,9 +3,11 @@ import random
 import json
 
 from Game.Sprites.Enemies.GroundCrawler import GroundCrawler
+from Game.Sprites.NPC import NPC
 from Game.utils.config import *
 from Game.utils.helpers import grid_to_px
 from Game.utils.spritegroup import SpriteGroup
+from Game.Sprites.NPCs.Interactable import Interactive
 
 AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (0, 1)])): 0,
@@ -65,6 +67,7 @@ class TileMap:
         self.crystals = SpriteGroup()
         self.items = SpriteGroup()
         self.chests = SpriteGroup()
+        self.npcs = SpriteGroup()
         self.breakables = SpriteGroup()
 
         self.overlay = overlay
@@ -133,6 +136,22 @@ class TileMap:
                         surface.fill((255,0,0))
                         enemy_sprite = GroundCrawler(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
                         self.enemies.append(enemy_sprite)
+
+            if layer["type"] == "npcs":
+                for npc in layer['data']:
+                    npc_type = npc['type']
+                    x = float(enemy['x'])
+                    y = float(enemy['y'])
+                    if len(enemy["properties"]) == 0:
+                        surface = pygame.surface.Surface((16,16))
+                        surface.fill((255,0,0))
+                        npc = NPC(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
+                        self.npcs.append(npc)
+                    elif "interactable" in npc["properties"]:
+                        surface = pygame.surface.Surface((16,16))
+                        surface.fill((0,255,0))
+                        npc = Interactive(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
+                        self.npcs.append(npc)
 
             if layer['type'] == 'tilelayer':
                 for tile in layer['data']:
@@ -377,6 +396,7 @@ class TileMap:
             self.items.draw(surface, (camera_offset.x, camera_offset.y))
             self.enemies.draw(surface, (camera_offset.x, camera_offset.y))
             self.breakables.draw(surface, (camera_offset.x, camera_offset.y))
+            self.npcs.draw(surface, (camera_offset.x, camera_offset.y))
 
         for x in range(left, right + 1):
             for y in range(top, bottom + 1):
@@ -429,6 +449,8 @@ class TileMap:
 
         self.breakables.update(dt)
 
+        self.npcs.update(dt)
+
         for sensor in self.sensors.values():
             if sensor["type"] == "render":
                 rect = pygame.Rect(sensor["x"] * self.tile_size,
@@ -477,8 +499,3 @@ class TileMap:
                     sensor["triggered"] = False
 
 
-def find_tilemap_for_rect(tilemaps, rect):
-    for name, tilemap in tilemaps.items():
-        if tilemap.contains_rect(rect):
-            return name, tilemap
-    return None, None

@@ -29,6 +29,13 @@
         ]
     },
     {
+      "type": "npcs",
+      "name": "NPCs",
+      "data": [
+        {"x": 6, "y": 4, "z": 5, "type": "interactable", "properties": ["interactable"]}
+      ]
+    },
+    {
       "type": "tilelayer",
       "name": "Ground",
       "data": [
