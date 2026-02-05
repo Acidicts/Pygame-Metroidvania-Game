@@ -32,7 +32,7 @@
       "type": "npcs",
       "name": "NPCs",
       "data": [
-        {"x": 6, "y": 4, "z": 5, "type": "interactable", "properties": ["interactable"]}
+        {"x": 6, "y": 4, "z": 5, "type": "interactable", "properties": ["interactable"], "text":  "This Cave is too big for me to explore alone! I wish I had some friends to help me out."}
       ]
     },
     {

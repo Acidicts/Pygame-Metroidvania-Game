@@ -150,7 +150,7 @@ class TileMap:
                     elif "interactable" in npc["properties"]:
                         surface = pygame.surface.Surface((16,16))
                         surface.fill((0,255,0))
-                        npc = Interactive(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
+                        npc = Interactive(surface, (grid_to_px(x), grid_to_px(y)), self.game, self, npc['text'])
                         self.npcs.append(npc)
 
             if layer['type'] == 'tilelayer':

@@ -5,6 +5,7 @@ from .utils.camera import Camera
 from .utils.tilemaps import *
 from .utils.utils import *
 from .Sprites.Player import Player
+from .utils.hud import Hud
 
 class Game:
     def __init__(self):
@@ -33,6 +34,17 @@ class Game:
 
         self._create_vignette_mask()
         self._update_vignette()
+
+        self.fonts = {
+            "Pixel": "Game/assets/fonts/pixels.ttf",
+            "Arial": "Arial",
+        }
+
+        self.hud = Hud(self)
+
+        # Initialize text overlay properties
+        self.text_overlay = "Sample Text Overlay"
+        self.text_overlay_show = True
 
     def _create_vignette_mask(self):
         size = self.screen.get_size()
@@ -76,7 +88,6 @@ class Game:
         self.vignette = self.vignette_mask.copy()
         tint = self.current_tint_colour
         self.vignette.fill((int(tint.x), int(tint.y), int(tint.z)), special_flags=pygame.BLEND_RGBA_MULT)
-
 
     def load(self):
         config = get_config()
@@ -179,11 +190,15 @@ class Game:
                 if tilemap.rendered:
                     tilemap.enemies.draw(self.screen, self.camera.offset)
 
+
             self.screen.blit(self.vignette, (0, 0))
 
             # Scale the off-screen buffer to the displayed screen
             surf = self.displayed_screen
             self.displayed_screen.blit(pygame.transform.scale(self.screen, (surf.get_width(), surf.get_height())), (0, 0))
+
+            self.hud.update(dt)
+            self.hud.draw(self.displayed_screen)
 
             pygame.display.flip()
 

@@ -3,10 +3,12 @@ import random
 
 from Game.utils.transisitions import Fadeout
 from Game.utils.utils import load_image
+from Game.utils.textbox_overlay import TextOverlay
 
 
 class Hud:
     def __init__(self, game):
+        self.font = pygame.font.SysFont("Arial", 16)
         self.game = game
         self.player = self.game.player
         self.assets = self.game.assets["hud"]
@@ -19,6 +21,9 @@ class Hud:
         self.shine_duration = 1.0
 
         self.fadeout = Fadeout(duration=3, color=(0, 0, 0))
+
+        self.text_overlay = ""
+        self.text_overlay_show = True
 
         self.crystal_icon = pygame.Surface((16, 16))
         self.crystal_icon.fill((0, 255, 255))  # Cyan color as placeholder
@@ -33,8 +38,10 @@ class Hud:
             "5": {"pos": (100, 12), "state": "hidden", "animation_state": ("startup_empty", -int((base_delay + 0.5) * 60)), "rect": pygame.Rect(180, 20, self.heart_size, self.heart_size), "shine_timer": random.uniform(0, self.shine_interval)},
         }
 
+        self.text_overlay_box = TextOverlay(game)
+
     def update(self, dt):
-        max_health = self.player.attributes["maxhealth"]
+        max_health = self.player.attributes["max_health"]
         current_health = self.player.attributes["health"]
 
         for i in range(1, 5):
@@ -64,6 +71,9 @@ class Hud:
                     total_shine_frames = frame_count * 5
                     if heart_data["animation_state"][1] >= total_shine_frames - 1:
                         heart_data["animation_state"] = ("full", 0)
+
+        # Update the text overlay for the typewriter effect
+        self.text_overlay_box.update(dt)
 
     def update_heart_animations(self):
         for heart_data in self.hearts.values():
@@ -116,7 +126,7 @@ class Hud:
                 if self.player.attributes["health"] == key + 1:
                     heart_data["animation_state"] = ("blink", 0)
 
-        max_health = self.player.attributes["maxhealth"]
+        max_health = self.player.attributes["max_health"]
 
         last_heart_key = str(max_health)
         if (last_heart_key in self.hearts and
@@ -136,7 +146,7 @@ class Hud:
                 self.hearts[next_heart]["animation_state"] = ("blink", 0)
 
         # Draw background for HUD
-        if self.player.attributes["maxhealth"] >= 5:
+        if self.player.attributes["max_health"] >= 5:
             pygame.draw.rect(screen, (0, 0, 0), (15, 10, 130, 65), border_radius=8)
         else:
             pygame.draw.rect(screen, (0, 0, 0), (12, 10, 90, 65), border_radius=8)
@@ -187,7 +197,13 @@ class Hud:
                     screen.blit(image, heart_data["pos"])
 
         screen.blit(load_image("miscellaneous/crystal.png", size=(16, 16)), (20, 47))
-        text_surface = self.game.fonts["Arial"].render(str(self.player.crystals), True, (255, 255, 255))
+        text_surface = self.font.render(str(self.player.currency), True, (255, 255, 255))
         screen.blit(text_surface, (40, 45))
 
-
+        # Set the text for the typewriter effect if it has changed and if the previous text is finished
+        if (hasattr(self.text_overlay_box, 'set_text') and
+            self.text_overlay != getattr(self, '_last_text_overlay', '') and
+            (not hasattr(self.text_overlay_box, 'typewriter_finished') or self.text_overlay_box.typewriter_finished)):
+            self.text_overlay_box.set_text(self.text_overlay)
+            self._last_text_overlay = self.text_overlay
+        self.text_overlay_box.draw(screen, self.text_overlay_show)

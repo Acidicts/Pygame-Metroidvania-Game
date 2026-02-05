@@ -55,6 +55,8 @@ class Player(PhysicsSprite):
 
         self.debug = True
 
+        self.currency = 0
+
     def check_enemy_collisions(self):
         for enemy in self.tilemap.enemies.sprites():
             if self.rect.colliderect(enemy.rect) and self.attributes["immunity"] <= 0:
@@ -306,6 +308,7 @@ class Player(PhysicsSprite):
         keys = pygame.key.get_pressed()
 
         if not self.attributes["movable"]:
+            self.velocity.x = 0
             return
 
         if keys[pygame.K_w]:
