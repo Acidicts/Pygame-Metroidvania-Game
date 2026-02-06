@@ -1,5 +1,4 @@
-import pygame
-
+from Game.FolderStorage import FolderStorage
 from .Sprites.Enemies.GroundCrawler import GroundCrawler
 from .utils.camera import Camera
 from .utils.tilemaps import *
@@ -22,6 +21,7 @@ class Game:
 
         self.camera = Camera(self.screen.get_width(), self.screen.get_height())
         self.tilemaps = {}
+        self.screens = FolderStorage()
         self.load()
 
         self.player = Player(self, position=pygame.Vector2(100, 100))
@@ -34,6 +34,8 @@ class Game:
 
         self._create_vignette_mask()
         self._update_vignette()
+
+        self.screen_focus = None
 
         self.fonts = {
             "Pixel": "Game/assets/fonts/pixels.ttf",
@@ -155,7 +157,7 @@ class Game:
                 self.current_bg_colour = self.current_bg_colour.lerp(self.target_bg_colour, min(1.0, fade_speed))
             else:
                 self.current_bg_colour = pygame.Vector3(self.target_bg_colour)
-            
+
             if self.current_tint_colour.distance_to(self.target_tint_colour) > 0.1:
                 self.current_tint_colour = self.current_tint_colour.lerp(self.target_tint_colour, min(1.0, fade_speed))
                 self._update_vignette()
@@ -192,6 +194,13 @@ class Game:
 
 
             self.screen.blit(self.vignette, (0, 0))
+
+            for category in self.screens.values():
+                for screen_obj in category.values():
+                    if hasattr(screen_obj, 'update'):
+                        screen_obj.update(dt)
+                    if hasattr(screen_obj, 'draw'):
+                        screen_obj.draw()
 
             # Scale the off-screen buffer to the displayed screen
             surf = self.displayed_screen

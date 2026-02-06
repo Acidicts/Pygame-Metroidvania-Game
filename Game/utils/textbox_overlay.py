@@ -6,7 +6,7 @@ class TextOverlay:
         self.text_overlay = ""
         self.text_overlay_show = True
 
-        font_config = self.game.fonts.get("Arial", "Arial")
+        font_config = self.game.fonts.get("Pixel", "Pixel")
         if isinstance(font_config, str):
             if font_config.endswith(".ttf"):
                 self.font = pygame.font.Font(font_config, 20)
@@ -41,6 +41,7 @@ class TextOverlay:
                 # If the typewriter effect is finished, clear the text overlay
                 self.text_overlay = ""
                 self.game.hud.text_overlay = ""
+                self.game.hud.text_overlay_show = False
                 self.game.player.attributes["movable"] = True
                 self.reset_typewriter()
                 return False
@@ -53,7 +54,7 @@ class TextOverlay:
         self.current_typewriter_text = ""
         self.typewriter_index = 0
         self.typewriter_timer = 0
-        self.typewriter_finished = False
+        self.typewriter_finished = True
 
     def set_text(self, text):
         """Set the text to be displayed with the typewriter effect."""
@@ -62,6 +63,9 @@ class TextOverlay:
         self.typewriter_index = 0
         self.typewriter_timer = 0
         self.typewriter_finished = False
+
+        if not text:
+            self.typewriter_finished = True
 
     def update(self, dt):
         """Update the typewriter effect based on elapsed time."""

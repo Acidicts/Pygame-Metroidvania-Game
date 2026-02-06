@@ -32,7 +32,8 @@
       "type": "npcs",
       "name": "NPCs",
       "data": [
-        {"x": 6, "y": 4, "z": 5, "type": "interactable", "properties": ["interactable"], "text":  "This Cave is too big for me to explore alone! I wish I had some friends to help me out."}
+        {"x": -2, "y": 6, "z": 5, "type": "simpleSpeaker", "properties": ["interactable"], "text":  "This Cave is too big for me to explore alone! I wish I had some friends to help me out."},
+        {"x": 4, "y": 6, "z": 5, "type": "shop", "properties": ["shop"], "store":  "assets/npc/cave_shop.json"}
       ]
     },
     {

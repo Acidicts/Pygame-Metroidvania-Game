@@ -30,6 +30,12 @@ class SpriteGroup:
     def get_by_id(self, sprite_id):
         return self.sprite_dict.get(sprite_id)
 
+    def get_id_by_sprite(self, sprite):
+        for k, v in self.sprite_dict.items():
+            if v == sprite:
+                return k
+        return None
+
     def empty(self):
         self.sprite_dict.clear()
 

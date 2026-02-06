@@ -4,10 +4,12 @@ import json
 
 from Game.Sprites.Enemies.GroundCrawler import GroundCrawler
 from Game.Sprites.NPC import NPC
+from Game.Sprites.NPCs.Shop import Shop
+from Game.Sprites.NPCs.SimpleSpeaker import SimpleSpeaker
 from Game.utils.config import *
 from Game.utils.helpers import grid_to_px
 from Game.utils.spritegroup import SpriteGroup
-from Game.Sprites.NPCs.Interactable import Interactive
+from Game.GUIs.NPC.Store import StoreScreen
 
 AUTOTILE_MAP = {
     tuple(sorted([(1, 0), (0, 1)])): 0,
@@ -140,18 +142,28 @@ class TileMap:
             if layer["type"] == "npcs":
                 for npc in layer['data']:
                     npc_type = npc['type']
-                    x = float(enemy['x'])
-                    y = float(enemy['y'])
-                    if len(enemy["properties"]) == 0:
-                        surface = pygame.surface.Surface((16,16))
-                        surface.fill((255,0,0))
-                        npc = NPC(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
-                        self.npcs.append(npc)
-                    elif "interactable" in npc["properties"]:
-                        surface = pygame.surface.Surface((16,16))
-                        surface.fill((0,255,0))
-                        npc = Interactive(surface, (grid_to_px(x), grid_to_px(y)), self.game, self, npc['text'])
-                        self.npcs.append(npc)
+                    x = float(npc['x'])
+                    y = float(npc['y'])
+
+                    match npc_type:
+                        case "simpleSpeaker":
+                            surface = pygame.surface.Surface((16, 16))
+                            surface.fill((0, 255, 0))
+                            npc_obj = SimpleSpeaker(surface, (grid_to_px(x), grid_to_px(y)), self.game, self, npc['text'])
+                            self.npcs.append(npc_obj)
+                        case "shop":
+                            surface = pygame.surface.Surface((16, 16))
+                            surface.fill((0, 255, 255))
+                            npc_obj = Shop((grid_to_px(x), grid_to_px(y)), self.game, npc['store'], self)
+                            self.npcs.append(npc_obj)
+                            self.game.screens['store'][self.npcs.get_id_by_sprite(npc_obj)] = StoreScreen(self.game, npc_obj)
+                        case _:
+                            surface = pygame.surface.Surface((16,16))
+                            surface.fill((255,0,0))
+                            npc_obj = NPC(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
+                            self.npcs.append(npc_obj)
+
+
 
             if layer['type'] == 'tilelayer':
                 for tile in layer['data']:

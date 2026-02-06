@@ -5,6 +5,11 @@ import json
 BASE_IMG_PATH = "Game/assets/"
 TILE_SIZE = 32
 
+def make_generic_surface(size, color=(255, 0, 255)):
+    surface = pygame.Surface(size, flags=pygame.SRCALPHA)
+    surface.fill(color)
+    return surface
+
 def load_image(path, colorkey=None, size=None):
     img = pygame.image.load(BASE_IMG_PATH + path)
     if size is not None:
