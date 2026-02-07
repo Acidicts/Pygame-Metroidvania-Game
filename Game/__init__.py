@@ -1,10 +1,11 @@
 from Game.FolderStorage import FolderStorage
-from .Sprites.Enemies.GroundCrawler import GroundCrawler
-from .utils.camera import Camera
-from .utils.tilemaps import *
-from .utils.utils import *
-from .Sprites.Player import Player
-from .utils.hud import Hud
+from Game.MISC.Items import ItemManager
+from Game.Sprites.Enemies.GroundCrawler import GroundCrawler
+from Game.utils.camera import Camera
+from Game.utils.tilemaps import *
+from Game.utils.utils import *
+from Game.Sprites.Player import Player
+from Game.utils.hud import Hud
 
 class Game:
     def __init__(self):
@@ -18,6 +19,8 @@ class Game:
         self.running = True
 
         self.assets = {}
+
+        self.items = ItemManager(self)
 
         self.camera = Camera(self.screen.get_width(), self.screen.get_height())
         self.tilemaps = {}

@@ -55,7 +55,40 @@ class Player(PhysicsSprite):
 
         self.debug = True
 
-        self.currency = 0
+        self.currency = 100 # Default for testing or whatever
+        self.inventory = {}
+
+    def add_attributes(self, attrs):
+        """Apply a dictionary of attributes to the player"""
+        for key, value in attrs.items():
+            if key == "health":
+                # Increase max health and heal by the same amount
+                self.attributes["current_max_health"] += value
+                self.attributes["health"] += value
+
+                # Clamp current_max_health to absolute maximum
+                if self.attributes["current_max_health"] > self.attributes["max_health"]:
+                    self.attributes["current_max_health"] = self.attributes["max_health"]
+
+                # Clamp health to new current_max_health
+                if self.attributes["health"] > self.attributes["current_max_health"]:
+                    self.attributes["health"] = self.attributes["current_max_health"]
+
+            elif key == "max_speed" or key == "speed":
+                self.attributes["max_speed"] += value
+            elif key == "jumps":
+                self.attributes["max_jumps"] += value
+            elif key == "attack_damage":
+                self.attributes["attack_damage"] += value
+            else:
+                # Handle other attributes like luck, looting, etc.
+                if key in self.attributes:
+                    if isinstance(self.attributes[key], (int, float)):
+                        self.attributes[key] += value
+                    else:
+                        self.attributes[key] = value
+                else:
+                    self.attributes[key] = value
 
     def check_enemy_collisions(self):
         for enemy in self.tilemap.enemies.sprites():

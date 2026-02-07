@@ -1,5 +1,6 @@
 from Game.GUIs.Screen import Screen
 from Game.GUIs.StoreTile import StoreTile
+import pygame
 
 class StoreScreen(Screen):
     def __init__(self, game, bound_sprite=None):
@@ -11,14 +12,10 @@ class StoreScreen(Screen):
 
         self.tiles = {}
         self.tiles_loaded = False
+        self.was_mouse_pressed = False
 
     def on_open(self, dt):
         self.opened = True
-        while self.opened and self.opened_progress < self.max_opened_progress:
-            self.opened_progress += 500 * dt
-            if self.opened_progress > self.max_opened_progress:
-                self.opened_progress = self.max_opened_progress
-
         # Start tile animations after store opens
         if not self.tiles_loaded:
             self.load()
@@ -27,23 +24,100 @@ class StoreScreen(Screen):
                 tile.start_animation()
 
     def load(self):
-        for i, data in enumerate(self.bound_sprite.data["trades"]):
-            print(data)
-            self.tiles[i] = StoreTile(self.game, data, index=i)
+        for i, trade_data in enumerate(self.bound_sprite.data["trades"]):
+            item_key = trade_data["item"]  # Extract the item name from the trade data
+            item_obj = self.game.items[item_key]
+
+            # Create a combined data object that includes both the item object and trade info
+            combined_data = {
+                "item": item_obj,
+                "price": trade_data["price"]
+            }
+
+            self.tiles[i] = StoreTile(self.game, combined_data, index=i)
 
     def draw_tiles(self):
+        # First pass: draw all tiles
         for i, tile in enumerate(self.tiles.values()):
             pos = (self.game.screen.get_size()[0] // 2, 50 + i * 70)
             tile.draw(self.game.screen, (pos[0], pos[1] + self.game.screen.get_size()[1] - self.opened_progress))
 
+        # Second pass: draw info panels (so they appear on top of all tiles)
+        for tile in self.tiles.values():
+            tile.draw_info(self.game.screen)
+
     def draw(self):
-        super().draw()
-        self.draw_tiles()
+        if self.opened_progress > 0:
+            # Draw background dimming based on progress
+            alpha = min(150, int((self.opened_progress / self.max_opened_progress) * 150))
+            surf = pygame.surface.Surface(self.game.screen.get_size(), pygame.SRCALPHA)
+            surf.fill((0, 0, 0, alpha))
+            self.game.screen.blit(surf, (0, 0))
+
+            self.draw_tiles()
 
     def update(self, dt):
-        if self.bound_sprite.interacted and not (self.opened or self.opened_progress > 0):
-            self.on_open(dt)
+        if self.bound_sprite.interacted:
+            if not self.opened:
+                self.on_open(dt)
 
-        # Update all tiles for animation
-        for tile in self.tiles.values():
+            if self.opened_progress < self.max_opened_progress:
+                self.opened_progress += 1500 * dt
+                if self.opened_progress > self.max_opened_progress:
+                    self.opened_progress = self.max_opened_progress
+        else:
+            self.opened = False
+            if self.opened_progress > 0:
+                self.opened_progress -= 1500 * dt
+                if self.opened_progress < 0:
+                    self.opened_progress = 0
+            else:
+                # Fully closed
+                self.tiles_loaded = False
+                self.tiles = {}
+
+        mouse_pressed = pygame.mouse.get_pressed()[0]
+
+        # Use a list of keys to safely remove items while iterating
+        tile_keys = list(self.tiles.keys())
+        for key in tile_keys:
+            tile = self.tiles[key]
             tile.update(dt)
+
+            # Check for purchase if store is fully opened or opening
+            if self.opened and mouse_pressed and not self.was_mouse_pressed:
+                # Find which original trade this corresponds to
+                # StoreTile stores index, but we can also use the key if they match
+
+                # Calculate current position to match drawing logic
+                # Finding the correct tile by index is tricky because self.tiles is a dict
+                # Let's assume the index we passed to StoreTile is the key in self.tiles
+
+                base_pos = (self.game.screen.get_size()[0] // 2, 50 + tile.index * 70)
+                current_y = base_pos[1] + self.game.screen.get_size()[1] - self.opened_progress
+                actual_pos = (base_pos[0], current_y)
+
+                if tile.is_buy_hovered_at_pos(actual_pos):
+                    if tile.buy():
+                        # Remove from UI
+                        del self.tiles[key]
+
+                        # Remove from the NPC's actual trade data so it stays gone
+                        if self.bound_sprite and "trades" in self.bound_sprite.data:
+                            # The index should match the position in the trades list
+                            # However, removing from list changes indices of subsequent items.
+                            # It's safer to reconstruct self.tiles or use a stable identifier.
+                            # For now, let's just remove it from the list if the index matches.
+                            if 0 <= tile.index < len(self.bound_sprite.data["trades"]):
+                                self.bound_sprite.data["trades"].pop(tile.index)
+
+                                # Re-index remaining tiles to avoid drawing gaps/misalignment
+                                new_tiles = {}
+                                for i, t in enumerate(self.tiles.values()):
+                                    t.index = i
+                                    new_tiles[i] = t
+                                self.tiles = new_tiles
+
+                        break # Only buy one item per click
+
+        self.was_mouse_pressed = mouse_pressed

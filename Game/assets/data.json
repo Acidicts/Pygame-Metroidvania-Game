@@ -1,0 +1,29 @@
+{
+  "items": {
+    "Pulsating Heart":
+      {
+        "name": "Pulsating Heart",
+        "description": "A heart that beats with a strange rhythm. A sense of safety is emmitted.",
+        "attributes":
+        {
+          "health": 2,
+          "max_speed": -10
+        }
+      },
+    "Pulsating Finger":
+    {
+      "name": "Pulsating Finger",
+      "description": "A finger that twitching uncontrollably. It seems to point towards nearby treasures.",
+      "looting": 2,
+      "health": -1
+    },
+    "Rabbit's Foot":
+    {
+      "name": "Rabbit's Foot",
+      "description": "An old charm that brings good luck. It makes you feel lighter on your feet.",
+      "luck": 2,
+      "jumps": 1,
+      "health": -1
+    }
+  }
+}
