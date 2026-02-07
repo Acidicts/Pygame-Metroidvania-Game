@@ -8,7 +8,7 @@ class StoreScreen(Screen):
 
         self.opened = False
         self.opened_progress = 0
-        self.max_opened_progress = self.game.screen.get_size()[1] - 50
+        self.max_opened_progress = self.game.displayed_screen.get_size()[1] - 50
 
         self.tiles = {}
         self.tiles_loaded = False
@@ -36,30 +36,35 @@ class StoreScreen(Screen):
 
             self.tiles[i] = StoreTile(self.game, combined_data, index=i)
 
-    def draw_tiles(self):
+    def draw_tiles(self, screen):
         # First pass: draw all tiles
+        screen_width = screen.get_width()
+        screen_height = screen.get_height()
         for i, tile in enumerate(self.tiles.values()):
-            pos = (self.game.screen.get_size()[0] // 2, 50 + i * 70)
-            tile.draw(self.game.screen, (pos[0], pos[1] + self.game.screen.get_size()[1] - self.opened_progress))
+            pos = (screen_width // 2, 50 + i * 140)
+            tile.draw(screen, (pos[0], pos[1] + screen_height - self.opened_progress))
 
         # Second pass: draw info panels (so they appear on top of all tiles)
         for tile in self.tiles.values():
-            tile.draw_info(self.game.screen)
+            tile.draw_info(screen)
 
-    def draw(self):
+    def draw(self, screen):
         if self.opened_progress > 0:
             # Draw background dimming based on progress
             alpha = min(150, int((self.opened_progress / self.max_opened_progress) * 150))
-            surf = pygame.surface.Surface(self.game.screen.get_size(), pygame.SRCALPHA)
+            surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
             surf.fill((0, 0, 0, alpha))
-            self.game.screen.blit(surf, (0, 0))
+            screen.blit(surf, (0, 0))
 
-            self.draw_tiles()
+            self.draw_tiles(screen)
 
     def update(self, dt):
         if self.bound_sprite.interacted:
             if not self.opened:
                 self.on_open(dt)
+
+            # Update max_opened_progress in case it changed or should be based on current screen
+            self.max_opened_progress = self.game.displayed_screen.get_size()[1] - 50
 
             if self.opened_progress < self.max_opened_progress:
                 self.opened_progress += 1500 * dt
@@ -90,11 +95,11 @@ class StoreScreen(Screen):
                 # StoreTile stores index, but we can also use the key if they match
 
                 # Calculate current position to match drawing logic
-                # Finding the correct tile by index is tricky because self.tiles is a dict
-                # Let's assume the index we passed to StoreTile is the key in self.tiles
+                screen_width = self.game.displayed_screen.get_width()
+                screen_height = self.game.displayed_screen.get_height()
 
-                base_pos = (self.game.screen.get_size()[0] // 2, 50 + tile.index * 70)
-                current_y = base_pos[1] + self.game.screen.get_size()[1] - self.opened_progress
+                base_pos = (screen_width // 2, 50 + tile.index * 70)
+                current_y = base_pos[1] + screen_height - self.opened_progress
                 actual_pos = (base_pos[0], current_y)
 
                 if tile.is_buy_hovered_at_pos(actual_pos):

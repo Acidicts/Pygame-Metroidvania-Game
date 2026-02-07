@@ -13,8 +13,8 @@ class Screen:
     def update(self, dt):
         pass
 
-    def draw(self):
+    def draw(self, screen):
         if self.bound_sprite and self.bound_sprite.interacted:
-            surf = pygame.surface.Surface(self.screen.get_size(), pygame.SRCALPHA)
+            surf = pygame.surface.Surface(screen.get_size(), pygame.SRCALPHA)
             surf.fill((0, 0, 0, 150))
-            self.game.screen.blit(surf, (0, 0))
+            screen.blit(surf, (0, 0))

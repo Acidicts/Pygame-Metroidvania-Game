@@ -23,13 +23,15 @@ class StoreTile:
 
 
     def create_image(self):
-        self.base_surface = pygame.Surface((200, 60), pygame.SRCALPHA)
+        # Scale UI surface for high resolution
+        self.base_surface = pygame.Surface((400, 120), pygame.SRCALPHA)
         self.base_surface.fill((0, 0, 0, 0))
-        pygame.draw.rect(self.base_surface, (0, 0, 0, 200), self.base_surface.get_rect(), border_radius=10)
-        pygame.draw.rect(self.base_surface, (0, 0, 0), self.base_surface.get_rect(), 2, border_radius=10)
+        pygame.draw.rect(self.base_surface, (0, 0, 0, 200), self.base_surface.get_rect(), border_radius=20)
+        pygame.draw.rect(self.base_surface, (0, 0, 0), self.base_surface.get_rect(), 4, border_radius=20)
 
-        font = pygame.font.Font(self.game.fonts["Pixel"], 12)
-        self.num_font = pygame.font.SysFont("Arial", 16, bold=True)
+        # Scale fonts
+        font = pygame.font.Font(self.game.fonts["Pixel"], 24)
+        self.num_font = pygame.font.SysFont("Arial", 32, bold=True)
 
         # Check if self.trades is an Item object or a trade dictionary
         if hasattr(self.trades, 'name'):  # If it's an Item object
@@ -45,7 +47,7 @@ class StoreTile:
 
         # Item name on top
         item_text = font.render(item_name, False, (255, 255, 255))
-        item_rect = item_text.get_rect(topleft=(8, 8))
+        item_rect = item_text.get_rect(topleft=(16, 16))
         self.base_surface.blit(item_text, item_rect)
 
         # Price on bottom left - handle both cases
@@ -56,11 +58,11 @@ class StoreTile:
             price_value = 0
 
         price_text = self.num_font.render(str(price_value), False, (255, 255, 255))
-        price_rect = price_text.get_rect(bottomleft=(8, 52))
+        price_rect = price_text.get_rect(bottomleft=(16, 104))
         self.base_surface.blit(price_text, price_rect)
 
-        # Buy button area (bottom right corner)
-        self.buy_rect = pygame.Rect(140, 35, 55, 20)
+        # Buy button area (bottom right corner) - scaled
+        self.buy_rect = pygame.Rect(280, 70, 110, 40)
 
         # Create final image
         self.image = self.base_surface.copy()
@@ -74,12 +76,9 @@ class StoreTile:
     def is_buy_hovered_at_pos(self, pos):
         """Check if mouse is over the buy button at a specific position"""
         mouse_pos = pygame.mouse.get_pos()
-        # Scale mouse position from display (800x600) to internal screen (400x300)
-        display_size = self.game.displayed_screen.get_size()
-        screen_size = self.game.screen.get_size()
-        scale_x = screen_size[0] / display_size[0]
-        scale_y = screen_size[1] / display_size[1]
-        scaled_mouse = (mouse_pos[0] * scale_x, mouse_pos[1] * scale_y)
+
+        # When drawing on the displayed screen directly, we use the raw mouse position
+        scaled_mouse = mouse_pos
 
         # Calculate the actual position of the buy button on screen
         screen_buy_rect = pygame.Rect(
@@ -93,15 +92,12 @@ class StoreTile:
     def is_tile_hovered(self, pos):
         """Check if mouse is over the tile but not the buy button"""
         mouse_pos = pygame.mouse.get_pos()
-        # Scale mouse position from display (800x600) to internal screen (400x300)
-        display_size = self.game.displayed_screen.get_size()
-        screen_size = self.game.screen.get_size()
-        scale_x = screen_size[0] / display_size[0]
-        scale_y = screen_size[1] / display_size[1]
-        scaled_mouse = (mouse_pos[0] * scale_x, mouse_pos[1] * scale_y)
+
+        # When drawing on the displayed screen directly, we use the raw mouse position
+        scaled_mouse = mouse_pos
 
         # Define the tile rectangle (same size as the base surface), accounting for bounce offset
-        tile_rect = pygame.Rect(pos[0], pos[1] + self.bounce_offset, 200, 60)
+        tile_rect = pygame.Rect(pos[0], pos[1] + self.bounce_offset, 400, 120)
 
         # Check if mouse is over the tile but not over the buy button
         return tile_rect.collidepoint(scaled_mouse) and not self.is_buy_hovered_at_pos(pos)
@@ -167,14 +163,14 @@ class StoreTile:
             item = self.trades  # Assume it's directly an item object
 
         if hasattr(item, 'name') and hasattr(item, 'description'):
-            # Create a surface for the info panel
-            font = pygame.font.Font(self.game.fonts["Pixel"], 12)
-            title_font = pygame.font.Font(self.game.fonts["Pixel"], 14)
+            # Create a surface for the info panel - scaled fonts
+            font = pygame.font.Font(self.game.fonts["Pixel"], 24)
+            title_font = pygame.font.Font(self.game.fonts["Pixel"], 28)
 
-            padding = 12
-            line_height = 18
-            label_width = 85
-            panel_width = 360
+            padding = 24
+            line_height = 36
+            label_width = 170
+            panel_width = 720
             max_value_width = panel_width - padding * 2 - label_width
 
             # Prepare text lines with wrapped text
@@ -302,7 +298,7 @@ class StoreTile:
 
         if self.animation_time < 0:
             # Still in delay phase
-            self.bounce_offset = -100  # Start well above target
+            self.bounce_offset = -200  # Start well above target
             return
 
         if self.animation_time >= self.animation_duration:
@@ -313,9 +309,8 @@ class StoreTile:
         # Normalize time to 0-1 range (excluding delay)
         t = self.animation_time / self.animation_duration
 
-        # Start at -100 (above), end at 0 (target position)
-        # Add a bounce effect using a damped oscillation
-        start_offset = -100
+        # Start at -200 (above), end at 0 (target position) - scaled
+        start_offset = -200
 
         # Ease out with bounce: overshoot then settle
         # Using a combination of ease-out and bounce
@@ -329,7 +324,7 @@ class StoreTile:
             # Second phase: bounce oscillation
             bounce_progress = (t - 0.7) / 0.3
             # Damped sine wave for bounce
-            amplitude = 15 * (1 - bounce_progress)  # Decreasing amplitude
+            amplitude = 30 * (1 - bounce_progress)  # Increased amplitude
             frequency = 4  # Number of bounces
             self.bounce_offset = amplitude * math.sin(bounce_progress * frequency * math.pi)
 
@@ -344,16 +339,16 @@ class StoreTile:
         screen.blit(self.base_surface, draw_pos)
 
         # Draw buy button with hover effect
-        font = pygame.font.Font(self.game.fonts["Pixel"], 12)
+        font = pygame.font.Font(self.game.fonts["Pixel"], 24)
 
         if self.is_buy_hovered():
             actual_buy_rect = pygame.Rect(
                 draw_pos[0] + self.buy_rect.x,
-                draw_pos[1] + self.buy_rect.y - 2,
+                draw_pos[1] + self.buy_rect.y - 4,
                 self.buy_rect.width,
                 self.buy_rect.height
             )
-            pygame.draw.rect(screen, (50, 50, 50, 200), actual_buy_rect, border_radius=5)
+            pygame.draw.rect(screen, (50, 50, 50, 200), actual_buy_rect, border_radius=10)
             buy_text = font.render("Buy", False, (100, 255, 100))
         else:
             actual_buy_rect = pygame.Rect(
@@ -362,7 +357,7 @@ class StoreTile:
                 self.buy_rect.width,
                 self.buy_rect.height
             )
-            pygame.draw.rect(screen, (50, 50, 50, 100), actual_buy_rect, border_radius=5)
+            pygame.draw.rect(screen, (50, 50, 50, 100), actual_buy_rect, border_radius=10)
             buy_text = font.render("Buy", False, (200, 255, 150))
 
         buy_text_rect = buy_text.get_rect(center=actual_buy_rect.center)
@@ -374,24 +369,24 @@ class StoreTile:
             draw_pos = self.pos
             # Position the info panel above the tile
             panel_x = draw_pos[0]  # Align with the left edge of the tile
-            panel_y = draw_pos[1] - self.info_panel['surface'].get_height() - 5  # Above the tile with 5px gap
+            panel_y = draw_pos[1] - self.info_panel['surface'].get_height() - 10  # Above the tile with gap
 
             # Adjust if panel would go off screen horizontally
             screen_width = screen.get_width()
             panel_width = self.info_panel['surface'].get_width()
             if panel_x + panel_width > screen_width:
                 # Position to align with the right edge of the tile if it would go off the right edge
-                panel_x = draw_pos[0] + 200 - panel_width  # Align with right edge of tile (200 is tile width)
+                panel_x = draw_pos[0] + 400 - panel_width  # 400 is scaled tile width
 
             # Ensure panel doesn't go off the left edge of the screen
             if panel_x < 0:
-                panel_x = 5  # Small margin from left edge
+                panel_x = 10  # Small margin from left edge
 
             # Adjust if panel would go off screen vertically (above)
             screen_height = screen.get_height()
             panel_height = self.info_panel['surface'].get_height()
             if panel_y < 0:
                 # Position below the tile if it would go above the screen
-                panel_y = draw_pos[1] + 60 + 5  # Below the tile (60 is tile height) with 5px gap
+                panel_y = draw_pos[1] + 120 + 10  # 120 is scaled tile height
 
             screen.blit(self.info_panel['surface'], (panel_x, panel_y))

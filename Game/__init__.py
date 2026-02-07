@@ -6,6 +6,7 @@ from Game.utils.tilemaps import *
 from Game.utils.utils import *
 from Game.Sprites.Player import Player
 from Game.utils.hud import Hud
+from Game.GUIs.Inventory import InventoryScreen
 
 class Game:
     def __init__(self):
@@ -42,10 +43,14 @@ class Game:
 
         self.fonts = {
             "Pixel": "Game/assets/fonts/pixels.ttf",
+            "workbench": "Game/assets/fonts/workbench.ttf",
             "Arial": "Arial",
         }
 
         self.hud = Hud(self)
+
+        self.inventory_screen = InventoryScreen(self)
+        self.screens["inventory"]["main"] = self.inventory_screen
 
         # Initialize text overlay properties
         self.text_overlay = "Sample Text Overlay"
@@ -154,6 +159,22 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_TAB:
+                        # Prevent opening inventory if interacting with an NPC/Shop
+                        can_open = True
+                        if not self.inventory_screen.active:
+                            for category in self.screens.values():
+                                for screen_obj in category.values():
+                                    if hasattr(screen_obj, 'bound_sprite') and screen_obj.bound_sprite:
+                                        if screen_obj.bound_sprite.interacted:
+                                            can_open = False
+                                            break
+
+                        if can_open:
+                            self.inventory_screen.toggle()
+                    if event.key == pygame.K_ESCAPE and self.inventory_screen.active:
+                        self.inventory_screen.toggle()
 
             fade_speed = 5.0 * dt
             if self.current_bg_colour.distance_to(self.target_bg_colour) > 0.1:
@@ -198,16 +219,17 @@ class Game:
 
             self.screen.blit(self.vignette, (0, 0))
 
+            # Scale the off-screen buffer to the displayed screen
+            surf = self.displayed_screen
+            self.displayed_screen.blit(pygame.transform.scale(self.screen, (surf.get_width(), surf.get_height())), (0, 0))
+
+            # Update and draw screens directly to the displayed screen
             for category in self.screens.values():
                 for screen_obj in category.values():
                     if hasattr(screen_obj, 'update'):
                         screen_obj.update(dt)
                     if hasattr(screen_obj, 'draw'):
-                        screen_obj.draw()
-
-            # Scale the off-screen buffer to the displayed screen
-            surf = self.displayed_screen
-            self.displayed_screen.blit(pygame.transform.scale(self.screen, (surf.get_width(), surf.get_height())), (0, 0))
+                        screen_obj.draw(self.displayed_screen)
 
             self.hud.update(dt)
             self.hud.draw(self.displayed_screen)

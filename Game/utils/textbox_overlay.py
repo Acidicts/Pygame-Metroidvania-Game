@@ -7,21 +7,22 @@ class TextOverlay:
         self.text_overlay_show = True
 
         font_config = self.game.fonts.get("Pixel", "Pixel")
+        font_size = 24
         if isinstance(font_config, str):
             if font_config.endswith(".ttf"):
-                self.font = pygame.font.Font(font_config, 20)
+                self.font = pygame.font.Font(font_config, font_size)
             else:
-                self.font = pygame.font.SysFont(font_config, 20)
+                self.font = pygame.font.SysFont(font_config, font_size)
         else:
             self.font = font_config
 
-        self.typewriter_text = ""  # The original text to be displayed with typewriter effect
-        self.current_typewriter_text = ""  # The text currently being displayed
-        self.typewriter_index = 0  # Index of the next character to display
-        self.typewriter_timer = 0  # Timer to control the speed of the typewriter effect
-        self.typewriter_speed = 0.05  # Time in seconds between each character
-        self.typewriter_finished = True  # Flag to indicate if the typewriter effect is complete
-        self.input_cooldown = 0.0  # Cooldown to prevent double triggers on single keypress
+        self.typewriter_text = ""
+        self.current_typewriter_text = ""
+        self.typewriter_index = 0
+        self.typewriter_timer = 0
+        self.typewriter_speed = 0.05
+        self.typewriter_finished = True
+        self.input_cooldown = 0.0
 
     def handle_input(self):
         keys = pygame.key.get_pressed()
@@ -30,15 +31,13 @@ class TextOverlay:
             return True
 
         if keys[pygame.K_ESCAPE]:
-            self.input_cooldown = 0.2  # Set cooldown
+            self.input_cooldown = 0.2
             if not self.typewriter_finished:
-                # If the typewriter effect is still running, finish it immediately
                 self.current_typewriter_text = self.typewriter_text
                 self.typewriter_index = len(self.typewriter_text)
                 self.typewriter_finished = True
-                return True # Continue interaction
+                return True
             else:
-                # If the typewriter effect is finished, clear the text overlay
                 self.text_overlay = ""
                 self.game.hud.text_overlay = ""
                 self.game.hud.text_overlay_show = False
@@ -49,7 +48,6 @@ class TextOverlay:
         return True
 
     def reset_typewriter(self):
-        """Reset the typewriter effect variables."""
         self.typewriter_text = ""
         self.current_typewriter_text = ""
         self.typewriter_index = 0
@@ -57,7 +55,6 @@ class TextOverlay:
         self.typewriter_finished = True
 
     def set_text(self, text):
-        """Set the text to be displayed with the typewriter effect."""
         self.typewriter_text = text
         self.current_typewriter_text = ""
         self.typewriter_index = 0
@@ -68,17 +65,14 @@ class TextOverlay:
             self.typewriter_finished = True
 
     def update(self, dt):
-        """Update the typewriter effect based on elapsed time."""
         if self.input_cooldown > 0:
             self.input_cooldown -= dt
 
         if self.typewriter_text and not self.typewriter_finished:
             self.typewriter_timer += dt
-            # Check if it's time to add the next character
             if self.typewriter_timer >= self.typewriter_speed:
-                # Calculate how many characters to advance
                 chars_to_advance = int(self.typewriter_timer // self.typewriter_speed)
-                self.typewriter_timer %= self.typewriter_speed  # Keep remainder
+                self.typewriter_timer %= self.typewriter_speed
 
                 self.typewriter_index += chars_to_advance
 
@@ -113,34 +107,30 @@ class TextOverlay:
         return lines
 
     def draw(self, screen, show):
-        text_box_width = screen.get_width() // 3
-        text_box_height = screen.get_height() // 3
+        text_box_width = int(screen.get_width() * 0.8) # Wider box
+        text_box_height = screen.get_height() // 4
 
         text_box = pygame.surface.Surface((text_box_width, text_box_height), pygame.SRCALPHA)
 
-        rect_with_rounded_corners = pygame.Rect(2, 2, text_box_width-4, text_box_height-4)
+        rect_with_rounded_corners = pygame.Rect(4, 4, text_box_width-8, text_box_height-8)
         rect_with_rounded_corners_padded_glow = pygame.Rect(0, 0, text_box_width, text_box_height)
         pygame.draw.rect(text_box, (0, 0, 0, 100), rect_with_rounded_corners, border_radius=10)
         pygame.draw.rect(text_box, (0, 0, 0, 200), rect_with_rounded_corners, border_radius=10, width=2)
         pygame.draw.rect(text_box, (255, 255, 255, 100), rect_with_rounded_corners_padded_glow, border_radius=10, width=2)
         pygame.draw.rect(text_box, (255, 255, 255, 200), rect_with_rounded_corners_padded_glow, border_radius=10, width=1)
 
-        # Determine which text to display: typewriter text if active, otherwise fallback to old behavior
         if show and (self.typewriter_text or self.text_overlay):
-            # Use typewriter text if set, otherwise overlay
             full_text = self.typewriter_text if self.typewriter_text else self.text_overlay
 
             if full_text:
-                location = (screen.get_width() - text_box_width - 10, screen.get_height() - text_box_height - 10)
+                location = ((screen.get_width() - text_box_width) // 2, screen.get_height() - text_box_height - 40)
 
-                max_text_width = text_box_width - 20
-                # Wrap the FULL text to ensure stable layout (prevents words jumping lines)
+                max_text_width = text_box_width - 40
                 wrapped_lines = self._wrap_text(full_text, self.font, max_text_width)
 
-                y_offset = 10
+                y_offset = 20
                 line_spacing = self.font.get_linesize()
 
-                # Determine how many characters to show
                 if self.typewriter_text:
                     chars_to_show = self.typewriter_index
                 else:
@@ -162,16 +152,14 @@ class TextOverlay:
 
                     if text_to_render:
                         text_surface = self.font.render(text_to_render, True, (255, 255, 255))
-                        text_box.blit(text_surface, (10, y_offset))
+                        text_box.blit(text_surface, (20, y_offset))
 
                     y_offset += line_spacing
                     if y_offset + line_spacing > text_box_height - 10:
                         break
 
                     current_char_count += line_len
-                    # Approximate the space consumed by wrapping to keep index in sync with full text
                     if current_char_count < len(full_text) and full_text[current_char_count] == " ":
                         current_char_count += 1
 
-                # Draw the text box onto the screen
                 screen.blit(text_box, location)
