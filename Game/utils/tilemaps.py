@@ -2,6 +2,7 @@ import pygame
 import random
 import json
 
+from Game.Sprites.Enemies.Flyer import Flyer
 from Game.Sprites.Enemies.GroundCrawler import GroundCrawler
 from Game.Sprites.NPC import NPC
 from Game.Sprites.NPCs.Shop import Shop
@@ -133,11 +134,18 @@ class TileMap:
                     enemy_type = enemy['type']
                     x = float(enemy['x'])
                     y = float(enemy['y'])
-                    if len(enemy["properties"]) == 0:
-                        surface = pygame.surface.Surface((16,16))
-                        surface.fill((255,0,0))
-                        enemy_sprite = GroundCrawler(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
-                        self.enemies.append(enemy_sprite)
+                    match enemy_type:
+                        case "flyer":
+                            surface = pygame.surface.Surface((16,16))
+                            surface.fill((255,0,0))
+                            enemy_sprite = Flyer(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
+                            self.enemies.append(enemy_sprite)
+
+                        case "groundCrawler":
+                            surface = pygame.surface.Surface((16,16))
+                            surface.fill((255,0,0))
+                            enemy_sprite = GroundCrawler(surface, (grid_to_px(x), grid_to_px(y)), self.game, self)
+                            self.enemies.append(enemy_sprite)
 
             if layer["type"] == "npcs":
                 for npc in layer['data']:
