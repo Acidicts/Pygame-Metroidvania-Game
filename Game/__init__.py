@@ -100,50 +100,45 @@ class Game:
         self.vignette.fill((int(tint.x), int(tint.y), int(tint.z)), special_flags=pygame.BLEND_RGBA_MULT)
 
     def restart(self):
-        """Restart the game by resetting the player to initial state"""
-        # Reset player position to a safe spawn point (on the platform at y=5)
-        # Platform at y=5 (tile coords) = 5*32 = 160 pixels, player spawns on top at y=128 (160-32)
-        spawn_x = 100
-        spawn_y = 128  # On top of the platform at tile y=5
+        self.clock = pygame.time.Clock()
+        self.running = True
 
-        self.player.pos = pygame.Vector2(spawn_x, spawn_y)
-        self.player.rect.topleft = (int(spawn_x), int(spawn_y))
+        self.assets = {}
 
-        # Reset player health
-        self.player.attributes["health"] = self.player.attributes["current_max_health"]
+        self.items = ItemManager(self)
 
-        # Reset player velocity
-        self.player.velocity = pygame.Vector2(0, 0)
+        self.camera = Camera(self.screen.get_width(), self.screen.get_height())
+        self.tilemaps = {}
+        self.screens = FolderStorage()
+        self.load()
 
-        # Set player as on ground since we're spawning on a platform
-        self.player.on_ground = True
-        self.player.collisions["bottom"] = True
-        self.player.attributes["jumps_left"] = self.player.attributes["max_jumps"]
+        self.player = Player(self, position=pygame.Vector2(100, 128))
+        self.player_tilemap = self.tilemaps["cave"]
 
-        # Reset immunity and other timers
-        self.player.attributes["immunity"] = 0.2  # Brief immunity to avoid instant damage on respawn
-        self.player.attributes["attack_timer"] = 0
-        self.player.attributes["movable_timer"] = 0
-        self.player.attributes["movable"] = True
+        self.current_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
+        self.target_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
+        self.current_tint_colour = pygame.Vector3(self.player_tilemap.tint_colour)
+        self.target_tint_colour = pygame.Vector3(self.player_tilemap.tint_colour)
 
-        # Reset attack state
-        self.player.is_attacking = False
-        self.player.attack_hitbox = None
-        self.player.attacked_enemies.clear()
+        self._create_vignette_mask()
+        self._update_vignette()
 
-        # Reset animation to idle so the player doesn't stay in death animation
-        self.player.animation = "idle"
-        self.player.animation_base = "idle"
-        self.player.animation_frame = 0
-        self.player.set_animation("idle")
+        self.screen_focus = None
 
-        # Reset HUD fadeout and can_restart flag
-        self.hud.fadeout.opacity = 0
-        self.hud.can_restart = False
-        self.hud.health = self.player.attributes["health"]
+        self.fonts = {
+            "Pixel": "Game/assets/fonts/pixels.ttf",
+            "workbench": "Game/assets/fonts/workbench.ttf",
+            "Arial": "Arial",
+        }
 
-        # Reset camera
-        self.camera.update(self.player)
+        self.hud = Hud(self)
+
+        self.inventory_screen = InventoryScreen(self)
+        self.screens["inventory"]["main"] = self.inventory_screen
+
+        # Initialize text overlay properties
+        self.text_overlay = "Sample Text Overlay"
+        self.text_overlay_show = True
 
     def load(self):
         config = get_config()
