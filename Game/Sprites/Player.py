@@ -196,8 +196,17 @@ class Player(PhysicsSprite):
                 sheet.images[image_key] = img
 
     def update(self, dt):
+        # If the player is dead, only run death animation – no physics, no controls
+        if self.attributes["health"] <= 0:
+            self.velocity = pygame.math.Vector2(0, 0)
+            self.set_animation("death")
+            self._update_animation_direction()
+            self.run_animation(dt)
+            return
+
         if self.rect.y > 1000:
             self.attributes["health"] = 0
+            return
 
         if self.attributes["movable_timer"] > 0:
             self.attributes["movable_timer"] -= dt

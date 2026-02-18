@@ -121,14 +121,21 @@ class Game:
         self.player.attributes["jumps_left"] = self.player.attributes["max_jumps"]
 
         # Reset immunity and other timers
-        self.player.attributes["immunity"] = 0
+        self.player.attributes["immunity"] = 0.2  # Brief immunity to avoid instant damage on respawn
         self.player.attributes["attack_timer"] = 0
         self.player.attributes["movable_timer"] = 0
+        self.player.attributes["movable"] = True
 
         # Reset attack state
         self.player.is_attacking = False
         self.player.attack_hitbox = None
         self.player.attacked_enemies.clear()
+
+        # Reset animation to idle so the player doesn't stay in death animation
+        self.player.animation = "idle"
+        self.player.animation_base = "idle"
+        self.player.animation_frame = 0
+        self.player.set_animation("idle")
 
         # Reset HUD fadeout and can_restart flag
         self.hud.fadeout.opacity = 0

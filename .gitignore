@@ -1,1 +1,23 @@
+# MCP agent
 /mcp_agent.py
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Build artifacts
+build/
+dist/
+*.spec
+*.exe
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE
+.idea/
+
