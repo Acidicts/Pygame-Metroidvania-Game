@@ -28,7 +28,7 @@ class Game:
         self.screens = FolderStorage()
         self.load()
 
-        self.player = Player(self, position=pygame.Vector2(100, 100))
+        self.player = Player(self, position=pygame.Vector2(100, 128))
         self.player_tilemap = self.tilemaps["cave"]
 
         self.current_bg_colour = pygame.Vector3(self.player_tilemap.bg_colour)
@@ -101,9 +101,13 @@ class Game:
 
     def restart(self):
         """Restart the game by resetting the player to initial state"""
-        # Reset player position (use pos, which is the source of truth for PhysicsSprite)
-        self.player.pos = pygame.Vector2(100, 100)
-        self.player.rect.topleft = (100, 100)
+        # Reset player position to a safe spawn point (on the platform at y=5)
+        # Platform at y=5 (tile coords) = 5*32 = 160 pixels, player spawns on top at y=128 (160-32)
+        spawn_x = 100
+        spawn_y = 128  # On top of the platform at tile y=5
+
+        self.player.pos = pygame.Vector2(spawn_x, spawn_y)
+        self.player.rect.topleft = (int(spawn_x), int(spawn_y))
 
         # Reset player health
         self.player.attributes["health"] = self.player.attributes["current_max_health"]
@@ -111,8 +115,9 @@ class Game:
         # Reset player velocity
         self.player.velocity = pygame.Vector2(0, 0)
 
-        # Reset player state
-        self.player.on_ground = False
+        # Set player as on ground since we're spawning on a platform
+        self.player.on_ground = True
+        self.player.collisions["bottom"] = True
         self.player.attributes["jumps_left"] = self.player.attributes["max_jumps"]
 
         # Reset immunity and other timers
