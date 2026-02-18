@@ -196,6 +196,9 @@ class Player(PhysicsSprite):
                 sheet.images[image_key] = img
 
     def update(self, dt):
+        if self.rect.y > 1000:
+            self.attributes["health"] = 0
+
         if self.attributes["movable_timer"] > 0:
             self.attributes["movable_timer"] -= dt
 

@@ -99,6 +99,40 @@ class Game:
         tint = self.current_tint_colour
         self.vignette.fill((int(tint.x), int(tint.y), int(tint.z)), special_flags=pygame.BLEND_RGBA_MULT)
 
+    def restart(self):
+        """Restart the game by resetting the player to initial state"""
+        # Reset player position (use pos, which is the source of truth for PhysicsSprite)
+        self.player.pos = pygame.Vector2(100, 100)
+        self.player.rect.topleft = (100, 100)
+
+        # Reset player health
+        self.player.attributes["health"] = self.player.attributes["current_max_health"]
+
+        # Reset player velocity
+        self.player.velocity = pygame.Vector2(0, 0)
+
+        # Reset player state
+        self.player.on_ground = False
+        self.player.attributes["jumps_left"] = self.player.attributes["max_jumps"]
+
+        # Reset immunity and other timers
+        self.player.attributes["immunity"] = 0
+        self.player.attributes["attack_timer"] = 0
+        self.player.attributes["movable_timer"] = 0
+
+        # Reset attack state
+        self.player.is_attacking = False
+        self.player.attack_hitbox = None
+        self.player.attacked_enemies.clear()
+
+        # Reset HUD fadeout and can_restart flag
+        self.hud.fadeout.opacity = 0
+        self.hud.can_restart = False
+        self.hud.health = self.player.attributes["health"]
+
+        # Reset camera
+        self.camera.update(self.player)
+
     def load(self):
         config = get_config()
         tile_size = config.get("tile_size", 32)
@@ -160,6 +194,9 @@ class Game:
                 if event.type == pygame.QUIT:
                     self.running = False
                 if event.type == pygame.KEYDOWN:
+                    # Handle restart when player is dead
+                    if event.key == pygame.K_SPACE and self.hud.can_restart:
+                        self.restart()
                     if event.key == pygame.K_TAB:
                         # Prevent opening inventory if interacting with an NPC/Shop
                         can_open = True

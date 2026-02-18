@@ -21,6 +21,7 @@ class Hud:
         self.shine_duration = 1.0
 
         self.fadeout = Fadeout(duration=3, color=(0, 0, 0))
+        self.can_restart = False  # Flag to track when player can restart
 
         self.text_overlay = ""
         self.text_overlay_show = True
@@ -48,6 +49,11 @@ class Hud:
         self._ensure_hearts_count(current_max)
 
         current_health = self.player.attributes["health"]
+
+        # Handle death - set can_restart flag when fadeout is complete
+        if current_health <= 0:
+            if self.fadeout.opacity >= 255:
+                self.can_restart = True
 
         # Handle damage blink trigger
         if self.health > current_health:
@@ -88,10 +94,17 @@ class Hud:
         else:
             self.fadeout.draw(screen)
             if self.fadeout.opacity >= 255:
-                text_surface = pygame.Font(self.game.fonts["workbench"], 24).render("You Died", True, (255, 255, 255))
+                # "You Died" text
+                text_surface = pygame.font.Font(self.game.fonts["workbench"], 24).render("You Died", True, (255, 255, 255))
                 text_surface = pygame.transform.scale(text_surface, (text_surface.get_width() * 4, text_surface.get_height() * 4))
-                text_rect = text_surface.get_rect(center=(self.game.screen.get_width() // 2, self.game.screen.get_height() // 2))
+                text_rect = text_surface.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2 - 50))
                 screen.blit(text_surface, text_rect)
+
+                # "Press Space to Restart" text
+                restart_surface = pygame.font.Font(self.game.fonts["workbench"], 16).render("Press Space to Restart", True, (200, 200, 200))
+                restart_surface = pygame.transform.scale(restart_surface, (restart_surface.get_width() * 2, restart_surface.get_height() * 2))
+                restart_rect = restart_surface.get_rect(center=(screen.get_width() // 2, screen.get_height() // 2 + 50))
+                screen.blit(restart_surface, restart_rect)
 
     def draw_hud(self, screen):
         current_max = int(self.player.attributes["current_max_health"])
